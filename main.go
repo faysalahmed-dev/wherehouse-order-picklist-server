@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/handlers"
@@ -41,5 +42,7 @@ func main() {
 	routes.RegisterOrdersRoutes(apiV1)
 
 	go db.ConnectToDB()
+	port := os.Getenv("PORT")
 	app.Listen("127.0.0.1:4000")
+	app.Listen("0.0.0.0:" + port)
 }
