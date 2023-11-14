@@ -1,8 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"os"
+	"runtime"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/handlers"
@@ -35,6 +36,12 @@ func main() {
 	app.Use(recover.New())
 	// app.Get("/stats", monitor.New())
 
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.Status(200).JSON(fiber.Map{
+			"error":   false,
+			"message": "warehouse api",
+		})
+	})
 	apiV1 := app.Group("/api/v1")
 	routes.RegisterUserRoutes(apiV1)
 	routes.RegisterCategoriesRoutes(apiV1)
@@ -42,7 +49,12 @@ func main() {
 	routes.RegisterOrdersRoutes(apiV1)
 
 	go db.ConnectToDB()
-	port := os.Getenv("PORT")
-	app.Listen("127.0.0.1:4000")
-	app.Listen("0.0.0.0:" + port)
+
+	os := runtime.GOOS
+	fmt.Println("os: ", os)
+	if os == "windows" {
+		log.Fatal(app.Listen("127.0.0.1:4000"))
+	} else {
+		log.Fatal(app.Listen(":4000"))
+	}
 }
