@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent"
@@ -30,7 +29,6 @@ func RegisterUser(c *fiber.Ctx) error {
 	}
 
 	hashPass, err := helpers.HashPassword(userData.Password)
-	fmt.Println("hash pass: ", hashPass)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to hash password")
 	}
@@ -97,10 +95,3 @@ func Profile(c *fiber.Ctx) error {
 
 	return fiber.NewError(fiber.StatusInternalServerError, "unable to find user")
 }
-
-// func TestFunc(c *fiber.Ctx) error {
-// 	u, ok := c.Locals("user").(*ent.User)
-// 	fmt.Println(ok)
-// 	fmt.Println(u)
-// 	return c.Status(200).JSON(fiber.Map{"user_id": u.ID})
-// }

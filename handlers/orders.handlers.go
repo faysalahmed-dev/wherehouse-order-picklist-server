@@ -100,7 +100,6 @@ func GetPickList(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(400, "page num is invalid")
 	}
-	fmt.Println(status == order.StatusPICKED.String() || status == order.StatusUNPICKED.String())
 	if status == order.StatusPICKED.String() || status == order.StatusUNPICKED.String() {
 		const limit = 15
 		var filters predicate.Order
@@ -209,7 +208,6 @@ func AddOrders(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "sub category not found")
 	}
 	orderItems, err := db.DBClient.Order.Create().SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).SetSubCategoriesID(subCategory.ID).SetUserID(u.ID).Save(context.Background())
-	fmt.Println(err)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create order")
 	}
@@ -242,7 +240,6 @@ func UpdateOrder(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "order not found")
 	}
 	orderItem, err := db.DBClient.Order.Update().Where(order.ID(o.ID)).SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).Save(context.Background())
-	fmt.Println(err)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update order")
 	}

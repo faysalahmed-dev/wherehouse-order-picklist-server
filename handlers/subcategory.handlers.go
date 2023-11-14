@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -76,7 +75,6 @@ func GetSubCategoriesOptions(c *fiber.Ctx) error {
 	if len(Options) == 0 {
 		Options = make(C, 0)
 	}
-	// fmt.Println("sub call: ", Options)
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
 		"data":  Options,
@@ -102,7 +100,6 @@ func CreateSubCategory(c *fiber.Ctx) error {
 
 	sub_category, err := db.DBClient.SubCategory.Create().SetName(data.Name).SetValue(val).SetDescriptions(data.Descriptions).SetCategoryID(category.ID).SetUserID(u.ID).Save(context.Background())
 	if err != nil {
-		fmt.Println(err)
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create sub category")
 	}
 	return c.Status(201).JSON(fiber.Map{
@@ -128,7 +125,6 @@ func UpdateSubCategory(c *fiber.Ctx) error {
 		filter = subcategory.And(subcategory.HasUserWith(user.ID(u.ID)), subcategory.ID(uuid.MustParse(id)))
 	}
 	hasItem, err := db.DBClient.SubCategory.Query().Where(filter).First(context.Background())
-	fmt.Println(hasItem)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "item not found")
 	}
@@ -148,7 +144,6 @@ func UpdateSubCategory(c *fiber.Ctx) error {
 
 	sub_category, err := db.DBClient.SubCategory.UpdateOneID(hasItem.ID).SetName(name).SetValue(value).SetDescriptions(descriptions).Save(context.Background())
 	if err != nil {
-		fmt.Println(err)
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update sub category")
 	}
 	return c.Status(200).JSON(fiber.Map{
