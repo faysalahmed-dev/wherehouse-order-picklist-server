@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+    # postgres database
+    db:
+        container_name: wherehouse_db
+        image: postgres:16.0-alpine3.17
+        restart: always
+        volumes:
+            - wherehouse_db:/var/lib/postgresql/data
+        ports:
+            # expose to localhost
+            - '6000:5432'
+        environment:
+            POSTGRES_PASSWORD: password123
+            POSTGRES_USER: wherehouse_db
+            POSTGRES_DB: wherehouse_db
+
+    api:
+        container_name: wherehouse_api
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - '4000:4000'
+        expose:
+            - 4000
+        environment:
+            DB_HOST: db
+            DB_NAME: wherehouse_db
+            DB_PASSWORD: password123
+            DB_PORT: 5432
+            DB_USER: wherehouse_db
+            TOKEN_SECRET: test_test
+        depends_on:
+            - db
+        volumes:
+            - .:/app
+volumes:
+    wherehouse_db: {}
