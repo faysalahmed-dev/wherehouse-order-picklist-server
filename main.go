@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"runtime"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
@@ -48,11 +49,12 @@ func main() {
 
 	go db.ConnectToDB()
 
-	os := runtime.GOOS
-	fmt.Println("os: ", os)
-	if os == "windows" {
-		log.Fatal(app.Listen("127.0.0.1:4000"))
+	runtimeOs := runtime.GOOS
+	port := os.Getenv("PORT")
+	fmt.Println("os: ", runtimeOs)
+	if runtimeOs == "windows" {
+		log.Fatal(app.Listen("127.0.0.1:" + port))
 	} else {
-		log.Fatal(app.Listen(":4000"))
+		log.Fatal(app.Listen(":4000" + port))
 	}
 }

@@ -26,6 +26,7 @@ services:
         expose:
             - 4000
         environment:
+            PORT: 4000
             DB_HOST: db
             DB_NAME: wherehouse_db
             DB_PASSWORD: password123
