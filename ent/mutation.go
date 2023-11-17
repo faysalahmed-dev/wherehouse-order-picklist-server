@@ -2177,6 +2177,9 @@ type UserMutation struct {
 	email                 *string
 	password              *string
 	_type                 *user.Type
+	blocked               *bool
+	total_orders          *int
+	addtotal_orders       *int
 	created_at            *time.Time
 	updated_at            *time.Time
 	clearedFields         map[string]struct{}
@@ -2440,6 +2443,98 @@ func (m *UserMutation) OldType(ctx context.Context) (v user.Type, err error) {
 // ResetType resets all changes to the "type" field.
 func (m *UserMutation) ResetType() {
 	m._type = nil
+}
+
+// SetBlocked sets the "blocked" field.
+func (m *UserMutation) SetBlocked(b bool) {
+	m.blocked = &b
+}
+
+// Blocked returns the value of the "blocked" field in the mutation.
+func (m *UserMutation) Blocked() (r bool, exists bool) {
+	v := m.blocked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBlocked returns the old "blocked" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldBlocked(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBlocked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBlocked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBlocked: %w", err)
+	}
+	return oldValue.Blocked, nil
+}
+
+// ResetBlocked resets all changes to the "blocked" field.
+func (m *UserMutation) ResetBlocked() {
+	m.blocked = nil
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (m *UserMutation) SetTotalOrders(i int) {
+	m.total_orders = &i
+	m.addtotal_orders = nil
+}
+
+// TotalOrders returns the value of the "total_orders" field in the mutation.
+func (m *UserMutation) TotalOrders() (r int, exists bool) {
+	v := m.total_orders
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalOrders returns the old "total_orders" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldTotalOrders(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalOrders is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalOrders requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalOrders: %w", err)
+	}
+	return oldValue.TotalOrders, nil
+}
+
+// AddTotalOrders adds i to the "total_orders" field.
+func (m *UserMutation) AddTotalOrders(i int) {
+	if m.addtotal_orders != nil {
+		*m.addtotal_orders += i
+	} else {
+		m.addtotal_orders = &i
+	}
+}
+
+// AddedTotalOrders returns the value that was added to the "total_orders" field in this mutation.
+func (m *UserMutation) AddedTotalOrders() (r int, exists bool) {
+	v := m.addtotal_orders
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalOrders resets all changes to the "total_orders" field.
+func (m *UserMutation) ResetTotalOrders() {
+	m.total_orders = nil
+	m.addtotal_orders = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -2710,7 +2805,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 8)
 	if m.name != nil {
 		fields = append(fields, user.FieldName)
 	}
@@ -2722,6 +2817,12 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m._type != nil {
 		fields = append(fields, user.FieldType)
+	}
+	if m.blocked != nil {
+		fields = append(fields, user.FieldBlocked)
+	}
+	if m.total_orders != nil {
+		fields = append(fields, user.FieldTotalOrders)
 	}
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
@@ -2745,6 +2846,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Password()
 	case user.FieldType:
 		return m.GetType()
+	case user.FieldBlocked:
+		return m.Blocked()
+	case user.FieldTotalOrders:
+		return m.TotalOrders()
 	case user.FieldCreatedAt:
 		return m.CreatedAt()
 	case user.FieldUpdatedAt:
@@ -2766,6 +2871,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldPassword(ctx)
 	case user.FieldType:
 		return m.OldType(ctx)
+	case user.FieldBlocked:
+		return m.OldBlocked(ctx)
+	case user.FieldTotalOrders:
+		return m.OldTotalOrders(ctx)
 	case user.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case user.FieldUpdatedAt:
@@ -2807,6 +2916,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetType(v)
 		return nil
+	case user.FieldBlocked:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBlocked(v)
+		return nil
+	case user.FieldTotalOrders:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalOrders(v)
+		return nil
 	case user.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2828,13 +2951,21 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *UserMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addtotal_orders != nil {
+		fields = append(fields, user.FieldTotalOrders)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case user.FieldTotalOrders:
+		return m.AddedTotalOrders()
+	}
 	return nil, false
 }
 
@@ -2843,6 +2974,13 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UserMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case user.FieldTotalOrders:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalOrders(v)
+		return nil
 	}
 	return fmt.Errorf("unknown User numeric field %s", name)
 }
@@ -2881,6 +3019,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldType:
 		m.ResetType()
+		return nil
+	case user.FieldBlocked:
+		m.ResetBlocked()
+		return nil
+	case user.FieldTotalOrders:
+		m.ResetTotalOrders()
 		return nil
 	case user.FieldCreatedAt:
 		m.ResetCreatedAt()

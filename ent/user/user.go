@@ -24,6 +24,10 @@ const (
 	FieldPassword = "password"
 	// FieldType holds the string denoting the type field in the database.
 	FieldType = "type"
+	// FieldBlocked holds the string denoting the blocked field in the database.
+	FieldBlocked = "blocked"
+	// FieldTotalOrders holds the string denoting the total_orders field in the database.
+	FieldTotalOrders = "total_orders"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -66,6 +70,8 @@ var Columns = []string{
 	FieldEmail,
 	FieldPassword,
 	FieldType,
+	FieldBlocked,
+	FieldTotalOrders,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -87,6 +93,10 @@ var (
 	EmailValidator func(string) error
 	// PasswordValidator is a validator for the "password" field. It is called by the builders before save.
 	PasswordValidator func(string) error
+	// DefaultBlocked holds the default value on creation for the "blocked" field.
+	DefaultBlocked bool
+	// DefaultTotalOrders holds the default value on creation for the "total_orders" field.
+	DefaultTotalOrders int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -149,6 +159,16 @@ func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 // ByType orders the results by the type field.
 func ByType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldType, opts...).ToFunc()
+}
+
+// ByBlocked orders the results by the blocked field.
+func ByBlocked(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBlocked, opts...).ToFunc()
+}
+
+// ByTotalOrders orders the results by the total_orders field.
+func ByTotalOrders(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalOrders, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

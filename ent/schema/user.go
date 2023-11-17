@@ -25,6 +25,8 @@ func (User) Fields() []ent.Field {
 		field.String("password").NotEmpty().Sensitive(),
 		field.Enum("type").
 			Values("ADMIN", "USER").Default("USER").StructTag(`json:"user_type"`),
+		field.Bool("blocked").Default(false).StructTag(`json:"blocked"`),
+		field.Int("total_orders").Default(0).StructTag(`json:"total_orders"`),
 		field.Time("created_at").
 			Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").

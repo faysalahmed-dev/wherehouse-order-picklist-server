@@ -71,6 +71,16 @@ func Password(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPassword, v))
 }
 
+// Blocked applies equality check predicate on the "blocked" field. It's identical to BlockedEQ.
+func Blocked(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldBlocked, v))
+}
+
+// TotalOrders applies equality check predicate on the "total_orders" field. It's identical to TotalOrdersEQ.
+func TotalOrders(v int) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldTotalOrders, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
@@ -294,6 +304,56 @@ func TypeIn(vs ...Type) predicate.User {
 // TypeNotIn applies the NotIn predicate on the "type" field.
 func TypeNotIn(vs ...Type) predicate.User {
 	return predicate.User(sql.FieldNotIn(FieldType, vs...))
+}
+
+// BlockedEQ applies the EQ predicate on the "blocked" field.
+func BlockedEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldBlocked, v))
+}
+
+// BlockedNEQ applies the NEQ predicate on the "blocked" field.
+func BlockedNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldBlocked, v))
+}
+
+// TotalOrdersEQ applies the EQ predicate on the "total_orders" field.
+func TotalOrdersEQ(v int) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldTotalOrders, v))
+}
+
+// TotalOrdersNEQ applies the NEQ predicate on the "total_orders" field.
+func TotalOrdersNEQ(v int) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldTotalOrders, v))
+}
+
+// TotalOrdersIn applies the In predicate on the "total_orders" field.
+func TotalOrdersIn(vs ...int) predicate.User {
+	return predicate.User(sql.FieldIn(FieldTotalOrders, vs...))
+}
+
+// TotalOrdersNotIn applies the NotIn predicate on the "total_orders" field.
+func TotalOrdersNotIn(vs ...int) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldTotalOrders, vs...))
+}
+
+// TotalOrdersGT applies the GT predicate on the "total_orders" field.
+func TotalOrdersGT(v int) predicate.User {
+	return predicate.User(sql.FieldGT(FieldTotalOrders, v))
+}
+
+// TotalOrdersGTE applies the GTE predicate on the "total_orders" field.
+func TotalOrdersGTE(v int) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldTotalOrders, v))
+}
+
+// TotalOrdersLT applies the LT predicate on the "total_orders" field.
+func TotalOrdersLT(v int) predicate.User {
+	return predicate.User(sql.FieldLT(FieldTotalOrders, v))
+}
+
+// TotalOrdersLTE applies the LTE predicate on the "total_orders" field.
+func TotalOrdersLTE(v int) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldTotalOrders, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

@@ -56,6 +56,34 @@ func (uc *UserCreate) SetNillableType(u *user.Type) *UserCreate {
 	return uc
 }
 
+// SetBlocked sets the "blocked" field.
+func (uc *UserCreate) SetBlocked(b bool) *UserCreate {
+	uc.mutation.SetBlocked(b)
+	return uc
+}
+
+// SetNillableBlocked sets the "blocked" field if the given value is not nil.
+func (uc *UserCreate) SetNillableBlocked(b *bool) *UserCreate {
+	if b != nil {
+		uc.SetBlocked(*b)
+	}
+	return uc
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (uc *UserCreate) SetTotalOrders(i int) *UserCreate {
+	uc.mutation.SetTotalOrders(i)
+	return uc
+}
+
+// SetNillableTotalOrders sets the "total_orders" field if the given value is not nil.
+func (uc *UserCreate) SetNillableTotalOrders(i *int) *UserCreate {
+	if i != nil {
+		uc.SetTotalOrders(*i)
+	}
+	return uc
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (uc *UserCreate) SetCreatedAt(t time.Time) *UserCreate {
 	uc.mutation.SetCreatedAt(t)
@@ -182,6 +210,14 @@ func (uc *UserCreate) defaults() {
 		v := user.DefaultType
 		uc.mutation.SetType(v)
 	}
+	if _, ok := uc.mutation.Blocked(); !ok {
+		v := user.DefaultBlocked
+		uc.mutation.SetBlocked(v)
+	}
+	if _, ok := uc.mutation.TotalOrders(); !ok {
+		v := user.DefaultTotalOrders
+		uc.mutation.SetTotalOrders(v)
+	}
 	if _, ok := uc.mutation.CreatedAt(); !ok {
 		v := user.DefaultCreatedAt()
 		uc.mutation.SetCreatedAt(v)
@@ -229,6 +265,12 @@ func (uc *UserCreate) check() error {
 		if err := user.TypeValidator(v); err != nil {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "User.type": %w`, err)}
 		}
+	}
+	if _, ok := uc.mutation.Blocked(); !ok {
+		return &ValidationError{Name: "blocked", err: errors.New(`ent: missing required field "User.blocked"`)}
+	}
+	if _, ok := uc.mutation.TotalOrders(); !ok {
+		return &ValidationError{Name: "total_orders", err: errors.New(`ent: missing required field "User.total_orders"`)}
 	}
 	if _, ok := uc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "User.created_at"`)}
@@ -286,6 +328,14 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.GetType(); ok {
 		_spec.SetField(user.FieldType, field.TypeEnum, value)
 		_node.Type = value
+	}
+	if value, ok := uc.mutation.Blocked(); ok {
+		_spec.SetField(user.FieldBlocked, field.TypeBool, value)
+		_node.Blocked = value
+	}
+	if value, ok := uc.mutation.TotalOrders(); ok {
+		_spec.SetField(user.FieldTotalOrders, field.TypeInt, value)
+		_node.TotalOrders = value
 	}
 	if value, ok := uc.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

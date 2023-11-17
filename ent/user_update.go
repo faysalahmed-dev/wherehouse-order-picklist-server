@@ -64,6 +64,41 @@ func (uu *UserUpdate) SetNillableType(u *user.Type) *UserUpdate {
 	return uu
 }
 
+// SetBlocked sets the "blocked" field.
+func (uu *UserUpdate) SetBlocked(b bool) *UserUpdate {
+	uu.mutation.SetBlocked(b)
+	return uu
+}
+
+// SetNillableBlocked sets the "blocked" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableBlocked(b *bool) *UserUpdate {
+	if b != nil {
+		uu.SetBlocked(*b)
+	}
+	return uu
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (uu *UserUpdate) SetTotalOrders(i int) *UserUpdate {
+	uu.mutation.ResetTotalOrders()
+	uu.mutation.SetTotalOrders(i)
+	return uu
+}
+
+// SetNillableTotalOrders sets the "total_orders" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableTotalOrders(i *int) *UserUpdate {
+	if i != nil {
+		uu.SetTotalOrders(*i)
+	}
+	return uu
+}
+
+// AddTotalOrders adds i to the "total_orders" field.
+func (uu *UserUpdate) AddTotalOrders(i int) *UserUpdate {
+	uu.mutation.AddTotalOrders(i)
+	return uu
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (uu *UserUpdate) SetCreatedAt(t time.Time) *UserUpdate {
 	uu.mutation.SetCreatedAt(t)
@@ -282,6 +317,15 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := uu.mutation.GetType(); ok {
 		_spec.SetField(user.FieldType, field.TypeEnum, value)
 	}
+	if value, ok := uu.mutation.Blocked(); ok {
+		_spec.SetField(user.FieldBlocked, field.TypeBool, value)
+	}
+	if value, ok := uu.mutation.TotalOrders(); ok {
+		_spec.SetField(user.FieldTotalOrders, field.TypeInt, value)
+	}
+	if value, ok := uu.mutation.AddedTotalOrders(); ok {
+		_spec.AddField(user.FieldTotalOrders, field.TypeInt, value)
+	}
 	if value, ok := uu.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
 	}
@@ -472,6 +516,41 @@ func (uuo *UserUpdateOne) SetNillableType(u *user.Type) *UserUpdateOne {
 	if u != nil {
 		uuo.SetType(*u)
 	}
+	return uuo
+}
+
+// SetBlocked sets the "blocked" field.
+func (uuo *UserUpdateOne) SetBlocked(b bool) *UserUpdateOne {
+	uuo.mutation.SetBlocked(b)
+	return uuo
+}
+
+// SetNillableBlocked sets the "blocked" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableBlocked(b *bool) *UserUpdateOne {
+	if b != nil {
+		uuo.SetBlocked(*b)
+	}
+	return uuo
+}
+
+// SetTotalOrders sets the "total_orders" field.
+func (uuo *UserUpdateOne) SetTotalOrders(i int) *UserUpdateOne {
+	uuo.mutation.ResetTotalOrders()
+	uuo.mutation.SetTotalOrders(i)
+	return uuo
+}
+
+// SetNillableTotalOrders sets the "total_orders" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableTotalOrders(i *int) *UserUpdateOne {
+	if i != nil {
+		uuo.SetTotalOrders(*i)
+	}
+	return uuo
+}
+
+// AddTotalOrders adds i to the "total_orders" field.
+func (uuo *UserUpdateOne) AddTotalOrders(i int) *UserUpdateOne {
+	uuo.mutation.AddTotalOrders(i)
 	return uuo
 }
 
@@ -722,6 +801,15 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if value, ok := uuo.mutation.GetType(); ok {
 		_spec.SetField(user.FieldType, field.TypeEnum, value)
+	}
+	if value, ok := uuo.mutation.Blocked(); ok {
+		_spec.SetField(user.FieldBlocked, field.TypeBool, value)
+	}
+	if value, ok := uuo.mutation.TotalOrders(); ok {
+		_spec.SetField(user.FieldTotalOrders, field.TypeInt, value)
+	}
+	if value, ok := uuo.mutation.AddedTotalOrders(); ok {
+		_spec.AddField(user.FieldTotalOrders, field.TypeInt, value)
 	}
 	if value, ok := uuo.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

@@ -26,6 +26,10 @@ type User struct {
 	Password string `json:"-"`
 	// Type holds the value of the "type" field.
 	Type user.Type `json:"user_type"`
+	// Blocked holds the value of the "blocked" field.
+	Blocked bool `json:"blocked"`
+	// TotalOrders holds the value of the "total_orders" field.
+	TotalOrders int `json:"total_orders"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -81,6 +85,10 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case user.FieldBlocked:
+			values[i] = new(sql.NullBool)
+		case user.FieldTotalOrders:
+			values[i] = new(sql.NullInt64)
 		case user.FieldName, user.FieldEmail, user.FieldPassword, user.FieldType:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt:
@@ -131,6 +139,18 @@ func (u *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
 				u.Type = user.Type(value.String)
+			}
+		case user.FieldBlocked:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field blocked", values[i])
+			} else if value.Valid {
+				u.Blocked = value.Bool
+			}
+		case user.FieldTotalOrders:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_orders", values[i])
+			} else if value.Valid {
+				u.TotalOrders = int(value.Int64)
 			}
 		case user.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -205,6 +225,12 @@ func (u *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("type=")
 	builder.WriteString(fmt.Sprintf("%v", u.Type))
+	builder.WriteString(", ")
+	builder.WriteString("blocked=")
+	builder.WriteString(fmt.Sprintf("%v", u.Blocked))
+	builder.WriteString(", ")
+	builder.WriteString("total_orders=")
+	builder.WriteString(fmt.Sprintf("%v", u.TotalOrders))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(u.CreatedAt.Format(time.ANSIC))
