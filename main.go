@@ -55,6 +55,6 @@ func main() {
 	if runtimeOs == "windows" {
 		log.Fatal(app.Listen("127.0.0.1:" + port))
 	} else {
-		log.Fatal(app.Listen(":4000" + port))
+		log.Fatal(app.Listen(":" + port))
 	}
 }
