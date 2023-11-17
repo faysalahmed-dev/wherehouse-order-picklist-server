@@ -5,7 +5,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent"
@@ -121,7 +120,6 @@ func UpdateCategory(c *fiber.Ctx) error {
 }
 
 func DeleteCategory(c *fiber.Ctx) error {
-	time.Sleep(time.Second * 5)
 	id := c.Params("id")
 	u, _ := c.Locals("user").(*ent.User)
 	var filter predicate.Category
