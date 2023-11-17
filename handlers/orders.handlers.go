@@ -211,6 +211,7 @@ func AddOrders(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create order")
 	}
+	db.DBClient.User.UpdateOneID(u.ID).SetTotalOrders(u.TotalOrders + 1).Save(context.Background())
 	return c.Status(201).JSON(fiber.Map{
 		"error": false,
 		"data":  orderItems,
@@ -288,10 +289,15 @@ func DeleteOrder(c *fiber.Ctx) error {
 		filter = order.And(order.ID(uuid.MustParse(orderid)), order.HasUserWith(user.ID(u.ID)))
 	}
 
-	orderItem, err := db.DBClient.Order.Delete().Where(filter).Exec(context.Background())
-	if err != nil || orderItem == 0 {
+	orderItem, err := db.DBClient.Order.Query().Where(filter).First(context.Background())
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "order not found")
+	}
+	_, err = db.DBClient.Order.Delete().Where(order.ID(orderItem.ID)).Exec(context.Background())
+	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to delete order")
 	}
+	db.DBClient.User.UpdateOneID(orderItem.Edges.User.ID).SetTotalOrders(u.TotalOrders + 1).Save(context.Background())
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
 		"data":  orderItem,
