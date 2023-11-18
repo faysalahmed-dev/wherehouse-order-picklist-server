@@ -36,7 +36,10 @@ func Authorized(c *fiber.Ctx) error {
 	}
 	user, err := db.DBClient.User.Query().Where(user.ID(user_id)).First(context.Background())
 	if err != nil {
-		return fiber.NewError(fiber.StatusForbidden, "user not found")
+		return fiber.NewError(fiber.StatusUnauthorized, "user not found")
+	}
+	if user.Blocked {
+		return fiber.NewError(fiber.StatusForbidden, "account blocked")
 	}
 	c.Locals("user", user)
 

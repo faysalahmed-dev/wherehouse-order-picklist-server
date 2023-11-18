@@ -70,6 +70,9 @@ func LoginUser(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusForbidden, "user not found")
 	}
+	if user.Blocked {
+		return fiber.NewError(fiber.StatusForbidden, "account blocked")
+	}
 
 	if !helpers.CheckPasswordHash(userData.Password, user.Password) {
 		return fiber.NewError(fiber.StatusForbidden, "password not match")
