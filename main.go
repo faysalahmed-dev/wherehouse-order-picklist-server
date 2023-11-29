@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -47,11 +46,12 @@ func main() {
 	routes.RegisterSubCategoriesRoutes(apiV1)
 	routes.RegisterOrdersRoutes(apiV1)
 
-	go db.ConnectToDB()
+	dbClient := db.ConnectToDB()
+	defer dbClient.Close()
 
 	runtimeOs := runtime.GOOS
 	port := os.Getenv("PORT")
-	fmt.Println("os: ", runtimeOs)
+
 	if runtimeOs == "windows" {
 		log.Fatal(app.Listen("127.0.0.1:" + port))
 	} else {
