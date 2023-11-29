@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"context"
 	"strings"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
@@ -34,7 +33,7 @@ func Authorized(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnauthorized, "user not found")
 	}
-	user, err := db.DBClient.User.Query().Where(user.ID(user_id)).First(context.Background())
+	user, err := db.DBClient.User.Query().Where(user.ID(user_id)).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnauthorized, "user not found")
 	}

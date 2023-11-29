@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"strconv"
@@ -39,7 +38,7 @@ func GetOrders(c *fiber.Ctx) error {
 	if len(qSubC) > 0 {
 		filters = order.And(filters, order.HasSubCategoriesWith(subcategory.ValueContains(qSubC)))
 	}
-	count, err := db.DBClient.Order.Query().Where(filters).Count(context.Background())
+	count, err := db.DBClient.Order.Query().Where(filters).Count(c.Context())
 	if err != nil {
 		return fiber.NewError(500, "unable to count orders")
 	}
@@ -74,7 +73,7 @@ func GetOrders(c *fiber.Ctx) error {
 			}).
 			Order(ent.Desc(order.FieldCreatedAt)).
 			Offset((page - 1) * limit).
-			All(context.Background())
+			All(c.Context())
 
 		if err != nil {
 			return fiber.NewError(500, "unable to get orders")
@@ -111,7 +110,7 @@ func GetPickList(c *fiber.Ctx) error {
 		if len(qSubC) > 0 {
 			filters = order.And(filters, order.HasSubCategoriesWith(subcategory.ValueContains(qSubC)))
 		}
-		count, err := db.DBClient.Order.Query().Where(filters).Count(context.Background())
+		count, err := db.DBClient.Order.Query().Where(filters).Count(c.Context())
 		if err != nil {
 			return fiber.NewError(500, "unable to count orders")
 		}
@@ -146,7 +145,7 @@ func GetPickList(c *fiber.Ctx) error {
 				}).
 				Order(ent.Desc(order.FieldCreatedAt)).
 				Offset((page - 1) * limit).
-				All(context.Background())
+				All(c.Context())
 
 			if err != nil {
 				return fiber.NewError(500, "unable to get orders")
@@ -177,7 +176,7 @@ func GetOrdersOptions(c *fiber.Ctx) error {
 		Limit(50).
 		Where(order.HasSubCategoriesWith(subcategory.Value(sub_category))).
 		Select(order.FieldID, order.FieldName).
-		Scan(context.Background(), &Options)
+		Scan(c.Context(), &Options)
 
 	if err != nil {
 		return fiber.NewError(500, "unable to get options")
@@ -203,15 +202,15 @@ func AddOrders(c *fiber.Ctx) error {
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
-	subCategory, err := db.DBClient.SubCategory.Query().Where(subcategory.Value(data.SubCategory)).First(context.Background())
+	subCategory, err := db.DBClient.SubCategory.Query().Where(subcategory.Value(data.SubCategory)).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "sub category not found")
 	}
-	orderItems, err := db.DBClient.Order.Create().SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).SetSubCategoriesID(subCategory.ID).SetUserID(u.ID).Save(context.Background())
+	orderItems, err := db.DBClient.Order.Create().SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).SetSubCategoriesID(subCategory.ID).SetUserID(u.ID).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create order")
 	}
-	db.DBClient.User.UpdateOneID(u.ID).SetTotalOrders(u.TotalOrders + 1).Save(context.Background())
+	db.DBClient.User.UpdateOneID(u.ID).SetTotalOrders(u.TotalOrders + 1).Save(c.Context())
 	return c.Status(201).JSON(fiber.Map{
 		"error": false,
 		"data":  orderItems,
@@ -236,11 +235,11 @@ func UpdateOrder(c *fiber.Ctx) error {
 	} else {
 		filter = order.And(order.ID(uuid.MustParse(orderid)), order.HasUserWith(user.ID(u.ID)))
 	}
-	o, err := db.DBClient.Order.Query().Where(filter).First(context.Background())
+	o, err := db.DBClient.Order.Query().Where(filter).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "order not found")
 	}
-	orderItem, err := db.DBClient.Order.Update().Where(order.ID(o.ID)).SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).Save(context.Background())
+	orderItem, err := db.DBClient.Order.Update().Where(order.ID(o.ID)).SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update order")
 	}
@@ -267,7 +266,7 @@ func AddToPickList(c *fiber.Ctx) error {
 		status = order.StatusUNPICKED
 	}
 
-	orderItem, err := db.DBClient.Order.Update().Where(order.ID(uuid.MustParse(orderid))).SetStatus(status).Save(context.Background())
+	orderItem, err := db.DBClient.Order.Update().Where(order.ID(uuid.MustParse(orderid))).SetStatus(status).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update status")
 	}
@@ -289,15 +288,15 @@ func DeleteOrder(c *fiber.Ctx) error {
 		filter = order.And(order.ID(uuid.MustParse(orderid)), order.HasUserWith(user.ID(u.ID)))
 	}
 
-	orderItem, err := db.DBClient.Order.Query().Where(filter).First(context.Background())
+	orderItem, err := db.DBClient.Order.Query().Where(filter).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "order not found")
 	}
-	_, err = db.DBClient.Order.Delete().Where(order.ID(orderItem.ID)).Exec(context.Background())
+	_, err = db.DBClient.Order.Delete().Where(order.ID(orderItem.ID)).Exec(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to delete order")
 	}
-	db.DBClient.User.UpdateOneID(orderItem.Edges.User.ID).SetTotalOrders(u.TotalOrders + 1).Save(context.Background())
+	db.DBClient.User.UpdateOneID(orderItem.Edges.User.ID).SetTotalOrders(u.TotalOrders + 1).Save(c.Context())
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
 		"data":  orderItem,

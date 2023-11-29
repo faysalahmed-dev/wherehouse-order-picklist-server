@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"math"
 	"strconv"
 	"strings"
@@ -21,7 +20,7 @@ func GetCategories(c *fiber.Ctx) error {
 		return fiber.NewError(400, "page num is invalid")
 	}
 	const limit = 15
-	count, err := db.DBClient.Category.Query().Count(context.Background())
+	count, err := db.DBClient.Category.Query().Count(c.Context())
 	if err != nil {
 		return fiber.NewError(500, "unable to count categories")
 	}
@@ -36,7 +35,7 @@ func GetCategories(c *fiber.Ctx) error {
 		})
 	}
 	if total_pages <= page {
-		categories, err := db.DBClient.Category.Query().Limit(limit).Offset((page - 1) * limit).Order(ent.Desc(category.FieldCreatedAt)).WithUser().All(context.Background())
+		categories, err := db.DBClient.Category.Query().Limit(limit).Offset((page - 1) * limit).Order(ent.Desc(category.FieldCreatedAt)).WithUser().All(c.Context())
 		if err != nil {
 			return fiber.NewError(500, "unable to get categories")
 		}
@@ -59,7 +58,7 @@ func GetCategoriesOptions(c *fiber.Ctx) error {
 		Value string `json:"value"`
 	}
 	var Options C
-	err := db.DBClient.Category.Query().Limit(50).Select(category.FieldID, category.FieldName, category.FieldValue).Scan(context.Background(), &Options)
+	err := db.DBClient.Category.Query().Limit(50).Select(category.FieldID, category.FieldName, category.FieldValue).Scan(c.Context(), &Options)
 	if err != nil {
 		return fiber.NewError(500, "unable to get options")
 	}
@@ -83,7 +82,7 @@ func CreateCategory(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
 	val := strings.ToLower(strings.Join(strings.Split(data.Name, " "), "-"))
-	category, err := db.DBClient.Category.Create().SetName(data.Name).SetValue(val).SetUserID(u.ID).Save(context.Background())
+	category, err := db.DBClient.Category.Create().SetName(data.Name).SetValue(val).SetUserID(u.ID).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create category")
 	}
@@ -109,7 +108,7 @@ func UpdateCategory(c *fiber.Ctx) error {
 	} else {
 		filter = category.And(category.HasUserWith(user.ID(u.ID)), category.ID(uuid.MustParse(id)))
 	}
-	category, err := db.DBClient.Category.Update().Where(filter).SetName(data.Name).SetValue(val).Save(context.Background())
+	category, err := db.DBClient.Category.Update().Where(filter).SetName(data.Name).SetValue(val).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update category")
 	}

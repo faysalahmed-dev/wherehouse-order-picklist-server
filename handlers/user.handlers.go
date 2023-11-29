@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"strconv"
@@ -27,7 +26,7 @@ func RegisterUser(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid credentials")
 	}
 
-	_, err := db.DBClient.User.Query().Where(user.Email(userData.Email)).First(context.Background())
+	_, err := db.DBClient.User.Query().Where(user.Email(userData.Email)).First(c.Context())
 	if err == nil {
 		return fiber.NewError(fiber.StatusConflict, "user already exits")
 	}
@@ -36,7 +35,7 @@ func RegisterUser(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to hash password")
 	}
-	newUser, err := db.DBClient.User.Create().SetEmail(userData.Email).SetPassword(hashPass).SetName(userData.Name).Save(context.Background())
+	newUser, err := db.DBClient.User.Create().SetEmail(userData.Email).SetPassword(hashPass).SetName(userData.Name).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable create user")
 	}
@@ -66,7 +65,7 @@ func LoginUser(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid credentials")
 	}
 
-	user, err := db.DBClient.User.Query().Where(user.Email(userData.Email)).First(context.Background())
+	user, err := db.DBClient.User.Query().Where(user.Email(userData.Email)).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusForbidden, "user not found")
 	}
@@ -104,7 +103,7 @@ func Profile(c *fiber.Ctx) error {
 }
 
 func GetAllUser(c *fiber.Ctx) error {
-	ctx := context.Background()
+	ctx := c.Context()
 	const limit = 15
 	status_type := c.Query("status_type") // "all" || "blocked" || "unblocked"
 	page, err := strconv.Atoi(c.Query("page", "1"))
@@ -159,7 +158,7 @@ func GetAllUser(c *fiber.Ctx) error {
 }
 
 func SearchUserByName(c *fiber.Ctx) error {
-	ctx := context.Background()
+	ctx := c.Context()
 	status_type := c.Query("status_type") // "all" || "blocked" || "unblocked"
 	name := c.Query("name")
 	if len(name) == 0 {
@@ -210,14 +209,14 @@ func UpdateUserStatus(c *fiber.Ctx) error {
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid payload")
 	}
-	user, err := db.DBClient.User.Query().Where(user.ID(uuid.MustParse(id))).First(context.Background())
+	user, err := db.DBClient.User.Query().Where(user.ID(uuid.MustParse(id))).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "user not found")
 	}
 	if user.Type.String() == "ADMIN" {
 		return fiber.NewError(fiber.StatusForbidden, "admin account can't be blocked")
 	}
-	if _, err := db.DBClient.User.UpdateOneID(user.ID).SetBlocked(data.Status).Save(context.Background()); err != nil {
+	if _, err := db.DBClient.User.UpdateOneID(user.ID).SetBlocked(data.Status).Save(c.Context()); err != nil {
 		fmt.Println(err)
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update status")
 	}

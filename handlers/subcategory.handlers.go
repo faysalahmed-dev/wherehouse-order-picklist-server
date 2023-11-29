@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"math"
 	"strconv"
 	"strings"
@@ -25,7 +24,7 @@ func GetSubCategories(c *fiber.Ctx) error {
 	}
 	const limit = 15
 	filters := subcategory.HasCategoryWith(category.Value(categoryParam))
-	count, err := db.DBClient.SubCategory.Query().Where(filters).Count(context.Background())
+	count, err := db.DBClient.SubCategory.Query().Where(filters).Count(c.Context())
 	if err != nil {
 		return fiber.NewError(500, "unable to count sub categories")
 	}
@@ -40,7 +39,7 @@ func GetSubCategories(c *fiber.Ctx) error {
 		})
 	}
 	if page <= total_pages {
-		subcategories, err := db.DBClient.SubCategory.Query().Where(filters).WithUser().Limit(limit).Order(ent.Desc(subcategory.FieldCreatedAt)).Offset((page - 1) * limit).All(context.Background())
+		subcategories, err := db.DBClient.SubCategory.Query().Where(filters).WithUser().Limit(limit).Order(ent.Desc(subcategory.FieldCreatedAt)).Offset((page - 1) * limit).All(c.Context())
 		if err != nil {
 			return fiber.NewError(500, "unable to get sub categories")
 		}
@@ -68,7 +67,7 @@ func GetSubCategoriesOptions(c *fiber.Ctx) error {
 
 	filters := subcategory.HasCategoryWith(category.Value(categoryParam))
 
-	err := db.DBClient.SubCategory.Query().Where(filters).Limit(50).Select(subcategory.FieldID, subcategory.FieldName, subcategory.FieldValue).Scan(context.Background(), &Options)
+	err := db.DBClient.SubCategory.Query().Where(filters).Limit(50).Select(subcategory.FieldID, subcategory.FieldName, subcategory.FieldValue).Scan(c.Context(), &Options)
 	if err != nil {
 		return fiber.NewError(500, "unable to get options")
 	}
@@ -91,14 +90,14 @@ func CreateSubCategory(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
 
-	category, err := db.DBClient.Category.Query().Where(category.Value(data.CategorySlug)).First(context.Background())
+	category, err := db.DBClient.Category.Query().Where(category.Value(data.CategorySlug)).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "category not found")
 	}
 	val := strings.ToLower(strings.Join(strings.Split(data.Name, " "), "-"))
 	u, _ := c.Locals("user").(*ent.User)
 
-	sub_category, err := db.DBClient.SubCategory.Create().SetName(data.Name).SetValue(val).SetDescriptions(data.Descriptions).SetCategoryID(category.ID).SetUserID(u.ID).Save(context.Background())
+	sub_category, err := db.DBClient.SubCategory.Create().SetName(data.Name).SetValue(val).SetDescriptions(data.Descriptions).SetCategoryID(category.ID).SetUserID(u.ID).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create sub category")
 	}
@@ -124,7 +123,7 @@ func UpdateSubCategory(c *fiber.Ctx) error {
 	} else {
 		filter = subcategory.And(subcategory.HasUserWith(user.ID(u.ID)), subcategory.ID(uuid.MustParse(id)))
 	}
-	hasItem, err := db.DBClient.SubCategory.Query().Where(filter).First(context.Background())
+	hasItem, err := db.DBClient.SubCategory.Query().Where(filter).First(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "item not found")
 	}
@@ -142,7 +141,7 @@ func UpdateSubCategory(c *fiber.Ctx) error {
 		descriptions = data.Descriptions
 	}
 
-	sub_category, err := db.DBClient.SubCategory.UpdateOneID(hasItem.ID).SetName(name).SetValue(value).SetDescriptions(descriptions).Save(context.Background())
+	sub_category, err := db.DBClient.SubCategory.UpdateOneID(hasItem.ID).SetName(name).SetValue(value).SetDescriptions(descriptions).Save(c.Context())
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update sub category")
 	}
