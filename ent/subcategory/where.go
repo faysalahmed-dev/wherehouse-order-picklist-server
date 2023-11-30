@@ -356,21 +356,21 @@ func UpdatedAtLTE(v time.Time) predicate.SubCategory {
 	return predicate.SubCategory(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// HasOrders applies the HasEdge predicate on the "orders" edge.
-func HasOrders() predicate.SubCategory {
+// HasProductItems applies the HasEdge predicate on the "product_items" edge.
+func HasProductItems() predicate.SubCategory {
 	return predicate.SubCategory(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, OrdersTable, OrdersColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, ProductItemsTable, ProductItemsColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasOrdersWith applies the HasEdge predicate on the "orders" edge with a given conditions (other predicates).
-func HasOrdersWith(preds ...predicate.Order) predicate.SubCategory {
+// HasProductItemsWith applies the HasEdge predicate on the "product_items" edge with a given conditions (other predicates).
+func HasProductItemsWith(preds ...predicate.ProductItem) predicate.SubCategory {
 	return predicate.SubCategory(func(s *sql.Selector) {
-		step := newOrdersStep()
+		step := newProductItemsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

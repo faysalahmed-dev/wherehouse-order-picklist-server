@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 )
@@ -78,6 +79,7 @@ func checkColumn(table, column string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			category.Table:    category.ValidColumn,
 			order.Table:       order.ValidColumn,
+			productitem.Table: productitem.ValidColumn,
 			subcategory.Table: subcategory.ValidColumn,
 			user.Table:        user.ValidColumn,
 		})

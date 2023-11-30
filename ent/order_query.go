@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -12,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
 )
@@ -20,13 +21,13 @@ import (
 // OrderQuery is the builder for querying Order entities.
 type OrderQuery struct {
 	config
-	ctx               *QueryContext
-	order             []order.OrderOption
-	inters            []Interceptor
-	predicates        []predicate.Order
-	withSubCategories *SubCategoryQuery
-	withUser          *UserQuery
-	withFKs           bool
+	ctx              *QueryContext
+	order            []order.OrderOption
+	inters           []Interceptor
+	predicates       []predicate.Order
+	withProductItems *ProductItemQuery
+	withUser         *UserQuery
+	withFKs          bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -63,9 +64,9 @@ func (oq *OrderQuery) Order(o ...order.OrderOption) *OrderQuery {
 	return oq
 }
 
-// QuerySubCategories chains the current query on the "sub_categories" edge.
-func (oq *OrderQuery) QuerySubCategories() *SubCategoryQuery {
-	query := (&SubCategoryClient{config: oq.config}).Query()
+// QueryProductItems chains the current query on the "product_items" edge.
+func (oq *OrderQuery) QueryProductItems() *ProductItemQuery {
+	query := (&ProductItemClient{config: oq.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := oq.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -76,8 +77,8 @@ func (oq *OrderQuery) QuerySubCategories() *SubCategoryQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(order.Table, order.FieldID, selector),
-			sqlgraph.To(subcategory.Table, subcategory.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, order.SubCategoriesTable, order.SubCategoriesColumn),
+			sqlgraph.To(productitem.Table, productitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, order.ProductItemsTable, order.ProductItemsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(oq.driver.Dialect(), step)
 		return fromU, nil
@@ -294,27 +295,27 @@ func (oq *OrderQuery) Clone() *OrderQuery {
 		return nil
 	}
 	return &OrderQuery{
-		config:            oq.config,
-		ctx:               oq.ctx.Clone(),
-		order:             append([]order.OrderOption{}, oq.order...),
-		inters:            append([]Interceptor{}, oq.inters...),
-		predicates:        append([]predicate.Order{}, oq.predicates...),
-		withSubCategories: oq.withSubCategories.Clone(),
-		withUser:          oq.withUser.Clone(),
+		config:           oq.config,
+		ctx:              oq.ctx.Clone(),
+		order:            append([]order.OrderOption{}, oq.order...),
+		inters:           append([]Interceptor{}, oq.inters...),
+		predicates:       append([]predicate.Order{}, oq.predicates...),
+		withProductItems: oq.withProductItems.Clone(),
+		withUser:         oq.withUser.Clone(),
 		// clone intermediate query.
 		sql:  oq.sql.Clone(),
 		path: oq.path,
 	}
 }
 
-// WithSubCategories tells the query-builder to eager-load the nodes that are connected to
-// the "sub_categories" edge. The optional arguments are used to configure the query builder of the edge.
-func (oq *OrderQuery) WithSubCategories(opts ...func(*SubCategoryQuery)) *OrderQuery {
-	query := (&SubCategoryClient{config: oq.config}).Query()
+// WithProductItems tells the query-builder to eager-load the nodes that are connected to
+// the "product_items" edge. The optional arguments are used to configure the query builder of the edge.
+func (oq *OrderQuery) WithProductItems(opts ...func(*ProductItemQuery)) *OrderQuery {
+	query := (&ProductItemClient{config: oq.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	oq.withSubCategories = query
+	oq.withProductItems = query
 	return oq
 }
 
@@ -335,12 +336,12 @@ func (oq *OrderQuery) WithUser(opts ...func(*UserQuery)) *OrderQuery {
 // Example:
 //
 //	var v []struct {
-//		Name string `json:"name"`
+//		Status order.Status `json:"status"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.Order.Query().
-//		GroupBy(order.FieldName).
+//		GroupBy(order.FieldStatus).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (oq *OrderQuery) GroupBy(field string, fields ...string) *OrderGroupBy {
@@ -358,11 +359,11 @@ func (oq *OrderQuery) GroupBy(field string, fields ...string) *OrderGroupBy {
 // Example:
 //
 //	var v []struct {
-//		Name string `json:"name"`
+//		Status order.Status `json:"status"`
 //	}
 //
 //	client.Order.Query().
-//		Select(order.FieldName).
+//		Select(order.FieldStatus).
 //		Scan(ctx, &v)
 func (oq *OrderQuery) Select(fields ...string) *OrderSelect {
 	oq.ctx.Fields = append(oq.ctx.Fields, fields...)
@@ -409,11 +410,11 @@ func (oq *OrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Order,
 		withFKs     = oq.withFKs
 		_spec       = oq.querySpec()
 		loadedTypes = [2]bool{
-			oq.withSubCategories != nil,
+			oq.withProductItems != nil,
 			oq.withUser != nil,
 		}
 	)
-	if oq.withSubCategories != nil || oq.withUser != nil {
+	if oq.withUser != nil {
 		withFKs = true
 	}
 	if withFKs {
@@ -437,9 +438,10 @@ func (oq *OrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Order,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := oq.withSubCategories; query != nil {
-		if err := oq.loadSubCategories(ctx, query, nodes, nil,
-			func(n *Order, e *SubCategory) { n.Edges.SubCategories = e }); err != nil {
+	if query := oq.withProductItems; query != nil {
+		if err := oq.loadProductItems(ctx, query, nodes,
+			func(n *Order) { n.Edges.ProductItems = []*ProductItem{} },
+			func(n *Order, e *ProductItem) { n.Edges.ProductItems = append(n.Edges.ProductItems, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -452,35 +454,34 @@ func (oq *OrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Order,
 	return nodes, nil
 }
 
-func (oq *OrderQuery) loadSubCategories(ctx context.Context, query *SubCategoryQuery, nodes []*Order, init func(*Order), assign func(*Order, *SubCategory)) error {
-	ids := make([]uuid.UUID, 0, len(nodes))
-	nodeids := make(map[uuid.UUID][]*Order)
+func (oq *OrderQuery) loadProductItems(ctx context.Context, query *ProductItemQuery, nodes []*Order, init func(*Order), assign func(*Order, *ProductItem)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*Order)
 	for i := range nodes {
-		if nodes[i].sub_category_orders == nil {
-			continue
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
 		}
-		fk := *nodes[i].sub_category_orders
-		if _, ok := nodeids[fk]; !ok {
-			ids = append(ids, fk)
-		}
-		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(ids) == 0 {
-		return nil
-	}
-	query.Where(subcategory.IDIn(ids...))
+	query.withFKs = true
+	query.Where(predicate.ProductItem(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(order.ProductItemsColumn), fks...))
+	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		nodes, ok := nodeids[n.ID]
+		fk := n.order_product_items
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "order_product_items" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "sub_category_orders" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "order_product_items" returned %v for node %v`, *fk, n.ID)
 		}
-		for i := range nodes {
-			assign(nodes[i], n)
-		}
+		assign(node, n)
 	}
 	return nil
 }

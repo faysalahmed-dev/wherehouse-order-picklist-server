@@ -25,21 +25,21 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// EdgeOrders holds the string denoting the orders edge name in mutations.
-	EdgeOrders = "orders"
+	// EdgeProductItems holds the string denoting the product_items edge name in mutations.
+	EdgeProductItems = "product_items"
 	// EdgeCategory holds the string denoting the category edge name in mutations.
 	EdgeCategory = "category"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// Table holds the table name of the subcategory in the database.
 	Table = "sub_categories"
-	// OrdersTable is the table that holds the orders relation/edge.
-	OrdersTable = "orders"
-	// OrdersInverseTable is the table name for the Order entity.
-	// It exists in this package in order to avoid circular dependency with the "order" package.
-	OrdersInverseTable = "orders"
-	// OrdersColumn is the table column denoting the orders relation/edge.
-	OrdersColumn = "sub_category_orders"
+	// ProductItemsTable is the table that holds the product_items relation/edge.
+	ProductItemsTable = "product_items"
+	// ProductItemsInverseTable is the table name for the ProductItem entity.
+	// It exists in this package in order to avoid circular dependency with the "productitem" package.
+	ProductItemsInverseTable = "product_items"
+	// ProductItemsColumn is the table column denoting the product_items relation/edge.
+	ProductItemsColumn = "sub_category_product_items"
 	// CategoryTable is the table that holds the category relation/edge.
 	CategoryTable = "sub_categories"
 	// CategoryInverseTable is the table name for the Category entity.
@@ -138,17 +138,17 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
-// ByOrdersCount orders the results by orders count.
-func ByOrdersCount(opts ...sql.OrderTermOption) OrderOption {
+// ByProductItemsCount orders the results by product_items count.
+func ByProductItemsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newOrdersStep(), opts...)
+		sqlgraph.OrderByNeighborsCount(s, newProductItemsStep(), opts...)
 	}
 }
 
-// ByOrders orders the results by orders terms.
-func ByOrders(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+// ByProductItems orders the results by product_items terms.
+func ByProductItems(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newOrdersStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newProductItemsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -165,11 +165,11 @@ func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
 	}
 }
-func newOrdersStep() *sqlgraph.Step {
+func newProductItemsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(OrdersInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, OrdersTable, OrdersColumn),
+		sqlgraph.To(ProductItemsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProductItemsTable, ProductItemsColumn),
 	)
 }
 func newCategoryStep() *sqlgraph.Step {

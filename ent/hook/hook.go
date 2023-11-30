@@ -33,6 +33,18 @@ func (f OrderFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OrderMutation", m)
 }
 
+// The ProductItemFunc type is an adapter to allow the use of ordinary
+// function as ProductItem mutator.
+type ProductItemFunc func(context.Context, *ent.ProductItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ProductItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ProductItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ProductItemMutation", m)
+}
+
 // The SubCategoryFunc type is an adapter to allow the use of ordinary
 // function as SubCategory mutator.
 type SubCategoryFunc func(context.Context, *ent.SubCategoryMutation) (ent.Value, error)

@@ -18,6 +18,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 )
@@ -31,6 +32,8 @@ type Client struct {
 	Category *CategoryClient
 	// Order is the client for interacting with the Order builders.
 	Order *OrderClient
+	// ProductItem is the client for interacting with the ProductItem builders.
+	ProductItem *ProductItemClient
 	// SubCategory is the client for interacting with the SubCategory builders.
 	SubCategory *SubCategoryClient
 	// User is the client for interacting with the User builders.
@@ -50,6 +53,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Category = NewCategoryClient(c.config)
 	c.Order = NewOrderClient(c.config)
+	c.ProductItem = NewProductItemClient(c.config)
 	c.SubCategory = NewSubCategoryClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -139,6 +143,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:      cfg,
 		Category:    NewCategoryClient(cfg),
 		Order:       NewOrderClient(cfg),
+		ProductItem: NewProductItemClient(cfg),
 		SubCategory: NewSubCategoryClient(cfg),
 		User:        NewUserClient(cfg),
 	}, nil
@@ -162,6 +167,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:      cfg,
 		Category:    NewCategoryClient(cfg),
 		Order:       NewOrderClient(cfg),
+		ProductItem: NewProductItemClient(cfg),
 		SubCategory: NewSubCategoryClient(cfg),
 		User:        NewUserClient(cfg),
 	}, nil
@@ -194,6 +200,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	c.Category.Use(hooks...)
 	c.Order.Use(hooks...)
+	c.ProductItem.Use(hooks...)
 	c.SubCategory.Use(hooks...)
 	c.User.Use(hooks...)
 }
@@ -203,6 +210,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.Category.Intercept(interceptors...)
 	c.Order.Intercept(interceptors...)
+	c.ProductItem.Intercept(interceptors...)
 	c.SubCategory.Intercept(interceptors...)
 	c.User.Intercept(interceptors...)
 }
@@ -214,6 +222,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Category.mutate(ctx, m)
 	case *OrderMutation:
 		return c.Order.mutate(ctx, m)
+	case *ProductItemMutation:
+		return c.ProductItem.mutate(ctx, m)
 	case *SubCategoryMutation:
 		return c.SubCategory.mutate(ctx, m)
 	case *UserMutation:
@@ -496,15 +506,15 @@ func (c *OrderClient) GetX(ctx context.Context, id uuid.UUID) *Order {
 	return obj
 }
 
-// QuerySubCategories queries the sub_categories edge of a Order.
-func (c *OrderClient) QuerySubCategories(o *Order) *SubCategoryQuery {
-	query := (&SubCategoryClient{config: c.config}).Query()
+// QueryProductItems queries the product_items edge of a Order.
+func (c *OrderClient) QueryProductItems(o *Order) *ProductItemQuery {
+	query := (&ProductItemClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := o.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(order.Table, order.FieldID, id),
-			sqlgraph.To(subcategory.Table, subcategory.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, order.SubCategoriesTable, order.SubCategoriesColumn),
+			sqlgraph.To(productitem.Table, productitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, order.ProductItemsTable, order.ProductItemsColumn),
 		)
 		fromV = sqlgraph.Neighbors(o.driver.Dialect(), step)
 		return fromV, nil
@@ -550,6 +560,171 @@ func (c *OrderClient) mutate(ctx context.Context, m *OrderMutation) (Value, erro
 		return (&OrderDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Order mutation op: %q", m.Op())
+	}
+}
+
+// ProductItemClient is a client for the ProductItem schema.
+type ProductItemClient struct {
+	config
+}
+
+// NewProductItemClient returns a client for the ProductItem from the given config.
+func NewProductItemClient(c config) *ProductItemClient {
+	return &ProductItemClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `productitem.Hooks(f(g(h())))`.
+func (c *ProductItemClient) Use(hooks ...Hook) {
+	c.hooks.ProductItem = append(c.hooks.ProductItem, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `productitem.Intercept(f(g(h())))`.
+func (c *ProductItemClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ProductItem = append(c.inters.ProductItem, interceptors...)
+}
+
+// Create returns a builder for creating a ProductItem entity.
+func (c *ProductItemClient) Create() *ProductItemCreate {
+	mutation := newProductItemMutation(c.config, OpCreate)
+	return &ProductItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ProductItem entities.
+func (c *ProductItemClient) CreateBulk(builders ...*ProductItemCreate) *ProductItemCreateBulk {
+	return &ProductItemCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ProductItemClient) MapCreateBulk(slice any, setFunc func(*ProductItemCreate, int)) *ProductItemCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ProductItemCreateBulk{err: fmt.Errorf("calling to ProductItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ProductItemCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ProductItemCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ProductItem.
+func (c *ProductItemClient) Update() *ProductItemUpdate {
+	mutation := newProductItemMutation(c.config, OpUpdate)
+	return &ProductItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ProductItemClient) UpdateOne(pi *ProductItem) *ProductItemUpdateOne {
+	mutation := newProductItemMutation(c.config, OpUpdateOne, withProductItem(pi))
+	return &ProductItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ProductItemClient) UpdateOneID(id uuid.UUID) *ProductItemUpdateOne {
+	mutation := newProductItemMutation(c.config, OpUpdateOne, withProductItemID(id))
+	return &ProductItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ProductItem.
+func (c *ProductItemClient) Delete() *ProductItemDelete {
+	mutation := newProductItemMutation(c.config, OpDelete)
+	return &ProductItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ProductItemClient) DeleteOne(pi *ProductItem) *ProductItemDeleteOne {
+	return c.DeleteOneID(pi.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ProductItemClient) DeleteOneID(id uuid.UUID) *ProductItemDeleteOne {
+	builder := c.Delete().Where(productitem.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ProductItemDeleteOne{builder}
+}
+
+// Query returns a query builder for ProductItem.
+func (c *ProductItemClient) Query() *ProductItemQuery {
+	return &ProductItemQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeProductItem},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ProductItem entity by its id.
+func (c *ProductItemClient) Get(ctx context.Context, id uuid.UUID) (*ProductItem, error) {
+	return c.Query().Where(productitem.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ProductItemClient) GetX(ctx context.Context, id uuid.UUID) *ProductItem {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySubCategories queries the sub_categories edge of a ProductItem.
+func (c *ProductItemClient) QuerySubCategories(pi *ProductItem) *SubCategoryQuery {
+	query := (&SubCategoryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := pi.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(productitem.Table, productitem.FieldID, id),
+			sqlgraph.To(subcategory.Table, subcategory.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, productitem.SubCategoriesTable, productitem.SubCategoriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(pi.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUser queries the user edge of a ProductItem.
+func (c *ProductItemClient) QueryUser(pi *ProductItem) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := pi.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(productitem.Table, productitem.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, productitem.UserTable, productitem.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(pi.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ProductItemClient) Hooks() []Hook {
+	return c.hooks.ProductItem
+}
+
+// Interceptors returns the client interceptors.
+func (c *ProductItemClient) Interceptors() []Interceptor {
+	return c.inters.ProductItem
+}
+
+func (c *ProductItemClient) mutate(ctx context.Context, m *ProductItemMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ProductItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ProductItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ProductItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ProductItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ProductItem mutation op: %q", m.Op())
 	}
 }
 
@@ -661,15 +836,15 @@ func (c *SubCategoryClient) GetX(ctx context.Context, id uuid.UUID) *SubCategory
 	return obj
 }
 
-// QueryOrders queries the orders edge of a SubCategory.
-func (c *SubCategoryClient) QueryOrders(sc *SubCategory) *OrderQuery {
-	query := (&OrderClient{config: c.config}).Query()
+// QueryProductItems queries the product_items edge of a SubCategory.
+func (c *SubCategoryClient) QueryProductItems(sc *SubCategory) *ProductItemQuery {
+	query := (&ProductItemClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := sc.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(subcategory.Table, subcategory.FieldID, id),
-			sqlgraph.To(order.Table, order.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, subcategory.OrdersTable, subcategory.OrdersColumn),
+			sqlgraph.To(productitem.Table, productitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, subcategory.ProductItemsTable, subcategory.ProductItemsColumn),
 		)
 		fromV = sqlgraph.Neighbors(sc.driver.Dialect(), step)
 		return fromV, nil
@@ -858,6 +1033,22 @@ func (c *UserClient) QueryOrders(u *User) *OrderQuery {
 	return query
 }
 
+// QueryProductItems queries the product_items edge of a User.
+func (c *UserClient) QueryProductItems(u *User) *ProductItemQuery {
+	query := (&ProductItemClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(productitem.Table, productitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ProductItemsTable, user.ProductItemsColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryCategories queries the categories edge of a User.
 func (c *UserClient) QueryCategories(u *User) *CategoryQuery {
 	query := (&CategoryClient{config: c.config}).Query()
@@ -918,9 +1109,9 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Category, Order, SubCategory, User []ent.Hook
+		Category, Order, ProductItem, SubCategory, User []ent.Hook
 	}
 	inters struct {
-		Category, Order, SubCategory, User []ent.Interceptor
+		Category, Order, ProductItem, SubCategory, User []ent.Interceptor
 	}
 )

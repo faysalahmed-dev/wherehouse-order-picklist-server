@@ -14,6 +14,7 @@ import (
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
@@ -27,6 +28,7 @@ type UserQuery struct {
 	inters            []Interceptor
 	predicates        []predicate.User
 	withOrders        *OrderQuery
+	withProductItems  *ProductItemQuery
 	withCategories    *CategoryQuery
 	withSubCategories *SubCategoryQuery
 	// intermediate query (i.e. traversal path).
@@ -80,6 +82,28 @@ func (uq *UserQuery) QueryOrders() *OrderQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(order.Table, order.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.OrdersTable, user.OrdersColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProductItems chains the current query on the "product_items" edge.
+func (uq *UserQuery) QueryProductItems() *ProductItemQuery {
+	query := (&ProductItemClient{config: uq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(productitem.Table, productitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ProductItemsTable, user.ProductItemsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -324,6 +348,7 @@ func (uq *UserQuery) Clone() *UserQuery {
 		inters:            append([]Interceptor{}, uq.inters...),
 		predicates:        append([]predicate.User{}, uq.predicates...),
 		withOrders:        uq.withOrders.Clone(),
+		withProductItems:  uq.withProductItems.Clone(),
 		withCategories:    uq.withCategories.Clone(),
 		withSubCategories: uq.withSubCategories.Clone(),
 		// clone intermediate query.
@@ -340,6 +365,17 @@ func (uq *UserQuery) WithOrders(opts ...func(*OrderQuery)) *UserQuery {
 		opt(query)
 	}
 	uq.withOrders = query
+	return uq
+}
+
+// WithProductItems tells the query-builder to eager-load the nodes that are connected to
+// the "product_items" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithProductItems(opts ...func(*ProductItemQuery)) *UserQuery {
+	query := (&ProductItemClient{config: uq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withProductItems = query
 	return uq
 }
 
@@ -443,8 +479,9 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = uq.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			uq.withOrders != nil,
+			uq.withProductItems != nil,
 			uq.withCategories != nil,
 			uq.withSubCategories != nil,
 		}
@@ -471,6 +508,13 @@ func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := uq.loadOrders(ctx, query, nodes,
 			func(n *User) { n.Edges.Orders = []*Order{} },
 			func(n *User, e *Order) { n.Edges.Orders = append(n.Edges.Orders, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := uq.withProductItems; query != nil {
+		if err := uq.loadProductItems(ctx, query, nodes,
+			func(n *User) { n.Edges.ProductItems = []*ProductItem{} },
+			func(n *User, e *ProductItem) { n.Edges.ProductItems = append(n.Edges.ProductItems, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -517,6 +561,37 @@ func (uq *UserQuery) loadOrders(ctx context.Context, query *OrderQuery, nodes []
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_orders" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (uq *UserQuery) loadProductItems(ctx context.Context, query *ProductItemQuery, nodes []*User, init func(*User), assign func(*User, *ProductItem)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[uuid.UUID]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.ProductItem(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ProductItemsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_product_items
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_product_items" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_product_items" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

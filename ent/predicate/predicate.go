@@ -12,6 +12,9 @@ type Category func(*sql.Selector)
 // Order is the predicate function for order builders.
 type Order func(*sql.Selector)
 
+// ProductItem is the predicate function for productitem builders.
+type ProductItem func(*sql.Selector)
+
 // SubCategory is the predicate function for subcategory builders.
 type SubCategory func(*sql.Selector)
 

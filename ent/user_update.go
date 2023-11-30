@@ -14,6 +14,7 @@ import (
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
@@ -134,6 +135,21 @@ func (uu *UserUpdate) AddOrders(o ...*Order) *UserUpdate {
 	return uu.AddOrderIDs(ids...)
 }
 
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (uu *UserUpdate) AddProductItemIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.AddProductItemIDs(ids...)
+	return uu
+}
+
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (uu *UserUpdate) AddProductItems(p ...*ProductItem) *UserUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uu.AddProductItemIDs(ids...)
+}
+
 // AddCategoryIDs adds the "categories" edge to the Category entity by IDs.
 func (uu *UserUpdate) AddCategoryIDs(ids ...uuid.UUID) *UserUpdate {
 	uu.mutation.AddCategoryIDs(ids...)
@@ -188,6 +204,27 @@ func (uu *UserUpdate) RemoveOrders(o ...*Order) *UserUpdate {
 		ids[i] = o[i].ID
 	}
 	return uu.RemoveOrderIDs(ids...)
+}
+
+// ClearProductItems clears all "product_items" edges to the ProductItem entity.
+func (uu *UserUpdate) ClearProductItems() *UserUpdate {
+	uu.mutation.ClearProductItems()
+	return uu
+}
+
+// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
+func (uu *UserUpdate) RemoveProductItemIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.RemoveProductItemIDs(ids...)
+	return uu
+}
+
+// RemoveProductItems removes "product_items" edges to ProductItem entities.
+func (uu *UserUpdate) RemoveProductItems(p ...*ProductItem) *UserUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uu.RemoveProductItemIDs(ids...)
 }
 
 // ClearCategories clears all "categories" edges to the Category entity.
@@ -370,6 +407,51 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.ProductItemsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductItemsTable,
+			Columns: []string{user.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !uu.mutation.ProductItemsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductItemsTable,
+			Columns: []string{user.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.ProductItemsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductItemsTable,
+			Columns: []string{user.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -589,6 +671,21 @@ func (uuo *UserUpdateOne) AddOrders(o ...*Order) *UserUpdateOne {
 	return uuo.AddOrderIDs(ids...)
 }
 
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (uuo *UserUpdateOne) AddProductItemIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.AddProductItemIDs(ids...)
+	return uuo
+}
+
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (uuo *UserUpdateOne) AddProductItems(p ...*ProductItem) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uuo.AddProductItemIDs(ids...)
+}
+
 // AddCategoryIDs adds the "categories" edge to the Category entity by IDs.
 func (uuo *UserUpdateOne) AddCategoryIDs(ids ...uuid.UUID) *UserUpdateOne {
 	uuo.mutation.AddCategoryIDs(ids...)
@@ -643,6 +740,27 @@ func (uuo *UserUpdateOne) RemoveOrders(o ...*Order) *UserUpdateOne {
 		ids[i] = o[i].ID
 	}
 	return uuo.RemoveOrderIDs(ids...)
+}
+
+// ClearProductItems clears all "product_items" edges to the ProductItem entity.
+func (uuo *UserUpdateOne) ClearProductItems() *UserUpdateOne {
+	uuo.mutation.ClearProductItems()
+	return uuo
+}
+
+// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
+func (uuo *UserUpdateOne) RemoveProductItemIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.RemoveProductItemIDs(ids...)
+	return uuo
+}
+
+// RemoveProductItems removes "product_items" edges to ProductItem entities.
+func (uuo *UserUpdateOne) RemoveProductItems(p ...*ProductItem) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uuo.RemoveProductItemIDs(ids...)
 }
 
 // ClearCategories clears all "categories" edges to the Category entity.
@@ -855,6 +973,51 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.ProductItemsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductItemsTable,
+			Columns: []string{user.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !uuo.mutation.ProductItemsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductItemsTable,
+			Columns: []string{user.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.ProductItemsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductItemsTable,
+			Columns: []string{user.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

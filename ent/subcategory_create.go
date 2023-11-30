@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
@@ -84,19 +84,19 @@ func (scc *SubCategoryCreate) SetNillableID(u *uuid.UUID) *SubCategoryCreate {
 	return scc
 }
 
-// AddOrderIDs adds the "orders" edge to the Order entity by IDs.
-func (scc *SubCategoryCreate) AddOrderIDs(ids ...uuid.UUID) *SubCategoryCreate {
-	scc.mutation.AddOrderIDs(ids...)
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (scc *SubCategoryCreate) AddProductItemIDs(ids ...uuid.UUID) *SubCategoryCreate {
+	scc.mutation.AddProductItemIDs(ids...)
 	return scc
 }
 
-// AddOrders adds the "orders" edges to the Order entity.
-func (scc *SubCategoryCreate) AddOrders(o ...*Order) *SubCategoryCreate {
-	ids := make([]uuid.UUID, len(o))
-	for i := range o {
-		ids[i] = o[i].ID
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (scc *SubCategoryCreate) AddProductItems(p ...*ProductItem) *SubCategoryCreate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
 	}
-	return scc.AddOrderIDs(ids...)
+	return scc.AddProductItemIDs(ids...)
 }
 
 // SetCategoryID sets the "category" edge to the Category entity by ID.
@@ -273,15 +273,15 @@ func (scc *SubCategoryCreate) createSpec() (*SubCategory, *sqlgraph.CreateSpec) 
 		_spec.SetField(subcategory.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
-	if nodes := scc.mutation.OrdersIDs(); len(nodes) > 0 {
+	if nodes := scc.mutation.ProductItemsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   subcategory.OrdersTable,
-			Columns: []string{subcategory.OrdersColumn},
+			Table:   subcategory.ProductItemsTable,
+			Columns: []string{subcategory.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

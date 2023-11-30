@@ -34,13 +34,9 @@ var (
 	// OrdersColumns holds the columns for the "orders" table.
 	OrdersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
-		{Name: "name", Type: field.TypeString},
-		{Name: "amount", Type: field.TypeString},
-		{Name: "unit_type", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"PICKED", "UNPICKED"}, Default: "UNPICKED"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "sub_category_orders", Type: field.TypeUUID, Nullable: true},
 		{Name: "user_orders", Type: field.TypeUUID, Nullable: true},
 	}
 	// OrdersTable holds the schema information for the "orders" table.
@@ -50,14 +46,46 @@ var (
 		PrimaryKey: []*schema.Column{OrdersColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "orders_sub_categories_orders",
-				Columns:    []*schema.Column{OrdersColumns[7]},
+				Symbol:     "orders_users_orders",
+				Columns:    []*schema.Column{OrdersColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+	}
+	// ProductItemsColumns holds the columns for the "product_items" table.
+	ProductItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "amount", Type: field.TypeString},
+		{Name: "unit_type", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "order_product_items", Type: field.TypeUUID, Nullable: true},
+		{Name: "sub_category_product_items", Type: field.TypeUUID, Nullable: true},
+		{Name: "user_product_items", Type: field.TypeUUID, Nullable: true},
+	}
+	// ProductItemsTable holds the schema information for the "product_items" table.
+	ProductItemsTable = &schema.Table{
+		Name:       "product_items",
+		Columns:    ProductItemsColumns,
+		PrimaryKey: []*schema.Column{ProductItemsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "product_items_orders_product_items",
+				Columns:    []*schema.Column{ProductItemsColumns[6]},
+				RefColumns: []*schema.Column{OrdersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "product_items_sub_categories_product_items",
+				Columns:    []*schema.Column{ProductItemsColumns[7]},
 				RefColumns: []*schema.Column{SubCategoriesColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
 			{
-				Symbol:     "orders_users_orders",
-				Columns:    []*schema.Column{OrdersColumns[8]},
+				Symbol:     "product_items_users_product_items",
+				Columns:    []*schema.Column{ProductItemsColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -116,6 +144,7 @@ var (
 	Tables = []*schema.Table{
 		CategoriesTable,
 		OrdersTable,
+		ProductItemsTable,
 		SubCategoriesTable,
 		UsersTable,
 	}
@@ -123,8 +152,10 @@ var (
 
 func init() {
 	CategoriesTable.ForeignKeys[0].RefTable = UsersTable
-	OrdersTable.ForeignKeys[0].RefTable = SubCategoriesTable
-	OrdersTable.ForeignKeys[1].RefTable = UsersTable
+	OrdersTable.ForeignKeys[0].RefTable = UsersTable
+	ProductItemsTable.ForeignKeys[0].RefTable = OrdersTable
+	ProductItemsTable.ForeignKeys[1].RefTable = SubCategoriesTable
+	ProductItemsTable.ForeignKeys[2].RefTable = UsersTable
 	SubCategoriesTable.ForeignKeys[0].RefTable = CategoriesTable
 	SubCategoriesTable.ForeignKeys[1].RefTable = UsersTable
 }

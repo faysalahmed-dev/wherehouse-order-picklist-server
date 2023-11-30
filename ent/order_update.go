@@ -13,7 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
 )
@@ -28,24 +28,6 @@ type OrderUpdate struct {
 // Where appends a list predicates to the OrderUpdate builder.
 func (ou *OrderUpdate) Where(ps ...predicate.Order) *OrderUpdate {
 	ou.mutation.Where(ps...)
-	return ou
-}
-
-// SetName sets the "name" field.
-func (ou *OrderUpdate) SetName(s string) *OrderUpdate {
-	ou.mutation.SetName(s)
-	return ou
-}
-
-// SetAmount sets the "amount" field.
-func (ou *OrderUpdate) SetAmount(s string) *OrderUpdate {
-	ou.mutation.SetAmount(s)
-	return ou
-}
-
-// SetUnitType sets the "unit_type" field.
-func (ou *OrderUpdate) SetUnitType(s string) *OrderUpdate {
-	ou.mutation.SetUnitType(s)
 	return ou
 }
 
@@ -83,23 +65,19 @@ func (ou *OrderUpdate) SetUpdatedAt(t time.Time) *OrderUpdate {
 	return ou
 }
 
-// SetSubCategoriesID sets the "sub_categories" edge to the SubCategory entity by ID.
-func (ou *OrderUpdate) SetSubCategoriesID(id uuid.UUID) *OrderUpdate {
-	ou.mutation.SetSubCategoriesID(id)
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (ou *OrderUpdate) AddProductItemIDs(ids ...uuid.UUID) *OrderUpdate {
+	ou.mutation.AddProductItemIDs(ids...)
 	return ou
 }
 
-// SetNillableSubCategoriesID sets the "sub_categories" edge to the SubCategory entity by ID if the given value is not nil.
-func (ou *OrderUpdate) SetNillableSubCategoriesID(id *uuid.UUID) *OrderUpdate {
-	if id != nil {
-		ou = ou.SetSubCategoriesID(*id)
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (ou *OrderUpdate) AddProductItems(p ...*ProductItem) *OrderUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
 	}
-	return ou
-}
-
-// SetSubCategories sets the "sub_categories" edge to the SubCategory entity.
-func (ou *OrderUpdate) SetSubCategories(s *SubCategory) *OrderUpdate {
-	return ou.SetSubCategoriesID(s.ID)
+	return ou.AddProductItemIDs(ids...)
 }
 
 // SetUserID sets the "user" edge to the User entity by ID.
@@ -126,10 +104,25 @@ func (ou *OrderUpdate) Mutation() *OrderMutation {
 	return ou.mutation
 }
 
-// ClearSubCategories clears the "sub_categories" edge to the SubCategory entity.
-func (ou *OrderUpdate) ClearSubCategories() *OrderUpdate {
-	ou.mutation.ClearSubCategories()
+// ClearProductItems clears all "product_items" edges to the ProductItem entity.
+func (ou *OrderUpdate) ClearProductItems() *OrderUpdate {
+	ou.mutation.ClearProductItems()
 	return ou
+}
+
+// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
+func (ou *OrderUpdate) RemoveProductItemIDs(ids ...uuid.UUID) *OrderUpdate {
+	ou.mutation.RemoveProductItemIDs(ids...)
+	return ou
+}
+
+// RemoveProductItems removes "product_items" edges to ProductItem entities.
+func (ou *OrderUpdate) RemoveProductItems(p ...*ProductItem) *OrderUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return ou.RemoveProductItemIDs(ids...)
 }
 
 // ClearUser clears the "user" edge to the User entity.
@@ -176,21 +169,6 @@ func (ou *OrderUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (ou *OrderUpdate) check() error {
-	if v, ok := ou.mutation.Name(); ok {
-		if err := order.NameValidator(v); err != nil {
-			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Order.name": %w`, err)}
-		}
-	}
-	if v, ok := ou.mutation.Amount(); ok {
-		if err := order.AmountValidator(v); err != nil {
-			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "Order.amount": %w`, err)}
-		}
-	}
-	if v, ok := ou.mutation.UnitType(); ok {
-		if err := order.UnitTypeValidator(v); err != nil {
-			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "Order.unit_type": %w`, err)}
-		}
-	}
 	if v, ok := ou.mutation.Status(); ok {
 		if err := order.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Order.status": %w`, err)}
@@ -211,15 +189,6 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
-	if value, ok := ou.mutation.Name(); ok {
-		_spec.SetField(order.FieldName, field.TypeString, value)
-	}
-	if value, ok := ou.mutation.Amount(); ok {
-		_spec.SetField(order.FieldAmount, field.TypeString, value)
-	}
-	if value, ok := ou.mutation.UnitType(); ok {
-		_spec.SetField(order.FieldUnitType, field.TypeString, value)
-	}
 	if value, ok := ou.mutation.Status(); ok {
 		_spec.SetField(order.FieldStatus, field.TypeEnum, value)
 	}
@@ -229,28 +198,44 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := ou.mutation.UpdatedAt(); ok {
 		_spec.SetField(order.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if ou.mutation.SubCategoriesCleared() {
+	if ou.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   order.SubCategoriesTable,
-			Columns: []string{order.SubCategoriesColumn},
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   order.ProductItemsTable,
+			Columns: []string{order.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(subcategory.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := ou.mutation.SubCategoriesIDs(); len(nodes) > 0 {
+	if nodes := ou.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !ou.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   order.SubCategoriesTable,
-			Columns: []string{order.SubCategoriesColumn},
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   order.ProductItemsTable,
+			Columns: []string{order.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(subcategory.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ou.mutation.ProductItemsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   order.ProductItemsTable,
+			Columns: []string{order.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -307,24 +292,6 @@ type OrderUpdateOne struct {
 	mutation *OrderMutation
 }
 
-// SetName sets the "name" field.
-func (ouo *OrderUpdateOne) SetName(s string) *OrderUpdateOne {
-	ouo.mutation.SetName(s)
-	return ouo
-}
-
-// SetAmount sets the "amount" field.
-func (ouo *OrderUpdateOne) SetAmount(s string) *OrderUpdateOne {
-	ouo.mutation.SetAmount(s)
-	return ouo
-}
-
-// SetUnitType sets the "unit_type" field.
-func (ouo *OrderUpdateOne) SetUnitType(s string) *OrderUpdateOne {
-	ouo.mutation.SetUnitType(s)
-	return ouo
-}
-
 // SetStatus sets the "status" field.
 func (ouo *OrderUpdateOne) SetStatus(o order.Status) *OrderUpdateOne {
 	ouo.mutation.SetStatus(o)
@@ -359,23 +326,19 @@ func (ouo *OrderUpdateOne) SetUpdatedAt(t time.Time) *OrderUpdateOne {
 	return ouo
 }
 
-// SetSubCategoriesID sets the "sub_categories" edge to the SubCategory entity by ID.
-func (ouo *OrderUpdateOne) SetSubCategoriesID(id uuid.UUID) *OrderUpdateOne {
-	ouo.mutation.SetSubCategoriesID(id)
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (ouo *OrderUpdateOne) AddProductItemIDs(ids ...uuid.UUID) *OrderUpdateOne {
+	ouo.mutation.AddProductItemIDs(ids...)
 	return ouo
 }
 
-// SetNillableSubCategoriesID sets the "sub_categories" edge to the SubCategory entity by ID if the given value is not nil.
-func (ouo *OrderUpdateOne) SetNillableSubCategoriesID(id *uuid.UUID) *OrderUpdateOne {
-	if id != nil {
-		ouo = ouo.SetSubCategoriesID(*id)
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (ouo *OrderUpdateOne) AddProductItems(p ...*ProductItem) *OrderUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
 	}
-	return ouo
-}
-
-// SetSubCategories sets the "sub_categories" edge to the SubCategory entity.
-func (ouo *OrderUpdateOne) SetSubCategories(s *SubCategory) *OrderUpdateOne {
-	return ouo.SetSubCategoriesID(s.ID)
+	return ouo.AddProductItemIDs(ids...)
 }
 
 // SetUserID sets the "user" edge to the User entity by ID.
@@ -402,10 +365,25 @@ func (ouo *OrderUpdateOne) Mutation() *OrderMutation {
 	return ouo.mutation
 }
 
-// ClearSubCategories clears the "sub_categories" edge to the SubCategory entity.
-func (ouo *OrderUpdateOne) ClearSubCategories() *OrderUpdateOne {
-	ouo.mutation.ClearSubCategories()
+// ClearProductItems clears all "product_items" edges to the ProductItem entity.
+func (ouo *OrderUpdateOne) ClearProductItems() *OrderUpdateOne {
+	ouo.mutation.ClearProductItems()
 	return ouo
+}
+
+// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
+func (ouo *OrderUpdateOne) RemoveProductItemIDs(ids ...uuid.UUID) *OrderUpdateOne {
+	ouo.mutation.RemoveProductItemIDs(ids...)
+	return ouo
+}
+
+// RemoveProductItems removes "product_items" edges to ProductItem entities.
+func (ouo *OrderUpdateOne) RemoveProductItems(p ...*ProductItem) *OrderUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return ouo.RemoveProductItemIDs(ids...)
 }
 
 // ClearUser clears the "user" edge to the User entity.
@@ -465,21 +443,6 @@ func (ouo *OrderUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (ouo *OrderUpdateOne) check() error {
-	if v, ok := ouo.mutation.Name(); ok {
-		if err := order.NameValidator(v); err != nil {
-			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Order.name": %w`, err)}
-		}
-	}
-	if v, ok := ouo.mutation.Amount(); ok {
-		if err := order.AmountValidator(v); err != nil {
-			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "Order.amount": %w`, err)}
-		}
-	}
-	if v, ok := ouo.mutation.UnitType(); ok {
-		if err := order.UnitTypeValidator(v); err != nil {
-			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "Order.unit_type": %w`, err)}
-		}
-	}
 	if v, ok := ouo.mutation.Status(); ok {
 		if err := order.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Order.status": %w`, err)}
@@ -517,15 +480,6 @@ func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error
 			}
 		}
 	}
-	if value, ok := ouo.mutation.Name(); ok {
-		_spec.SetField(order.FieldName, field.TypeString, value)
-	}
-	if value, ok := ouo.mutation.Amount(); ok {
-		_spec.SetField(order.FieldAmount, field.TypeString, value)
-	}
-	if value, ok := ouo.mutation.UnitType(); ok {
-		_spec.SetField(order.FieldUnitType, field.TypeString, value)
-	}
 	if value, ok := ouo.mutation.Status(); ok {
 		_spec.SetField(order.FieldStatus, field.TypeEnum, value)
 	}
@@ -535,28 +489,44 @@ func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error
 	if value, ok := ouo.mutation.UpdatedAt(); ok {
 		_spec.SetField(order.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if ouo.mutation.SubCategoriesCleared() {
+	if ouo.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   order.SubCategoriesTable,
-			Columns: []string{order.SubCategoriesColumn},
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   order.ProductItemsTable,
+			Columns: []string{order.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(subcategory.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := ouo.mutation.SubCategoriesIDs(); len(nodes) > 0 {
+	if nodes := ouo.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !ouo.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   order.SubCategoriesTable,
-			Columns: []string{order.SubCategoriesColumn},
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   order.ProductItemsTable,
+			Columns: []string{order.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(subcategory.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ouo.mutation.ProductItemsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   order.ProductItemsTable,
+			Columns: []string{order.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

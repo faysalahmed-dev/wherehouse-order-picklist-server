@@ -12,8 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
@@ -70,19 +70,19 @@ func (scu *SubCategoryUpdate) SetUpdatedAt(t time.Time) *SubCategoryUpdate {
 	return scu
 }
 
-// AddOrderIDs adds the "orders" edge to the Order entity by IDs.
-func (scu *SubCategoryUpdate) AddOrderIDs(ids ...uuid.UUID) *SubCategoryUpdate {
-	scu.mutation.AddOrderIDs(ids...)
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (scu *SubCategoryUpdate) AddProductItemIDs(ids ...uuid.UUID) *SubCategoryUpdate {
+	scu.mutation.AddProductItemIDs(ids...)
 	return scu
 }
 
-// AddOrders adds the "orders" edges to the Order entity.
-func (scu *SubCategoryUpdate) AddOrders(o ...*Order) *SubCategoryUpdate {
-	ids := make([]uuid.UUID, len(o))
-	for i := range o {
-		ids[i] = o[i].ID
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (scu *SubCategoryUpdate) AddProductItems(p ...*ProductItem) *SubCategoryUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
 	}
-	return scu.AddOrderIDs(ids...)
+	return scu.AddProductItemIDs(ids...)
 }
 
 // SetCategoryID sets the "category" edge to the Category entity by ID.
@@ -128,25 +128,25 @@ func (scu *SubCategoryUpdate) Mutation() *SubCategoryMutation {
 	return scu.mutation
 }
 
-// ClearOrders clears all "orders" edges to the Order entity.
-func (scu *SubCategoryUpdate) ClearOrders() *SubCategoryUpdate {
-	scu.mutation.ClearOrders()
+// ClearProductItems clears all "product_items" edges to the ProductItem entity.
+func (scu *SubCategoryUpdate) ClearProductItems() *SubCategoryUpdate {
+	scu.mutation.ClearProductItems()
 	return scu
 }
 
-// RemoveOrderIDs removes the "orders" edge to Order entities by IDs.
-func (scu *SubCategoryUpdate) RemoveOrderIDs(ids ...uuid.UUID) *SubCategoryUpdate {
-	scu.mutation.RemoveOrderIDs(ids...)
+// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
+func (scu *SubCategoryUpdate) RemoveProductItemIDs(ids ...uuid.UUID) *SubCategoryUpdate {
+	scu.mutation.RemoveProductItemIDs(ids...)
 	return scu
 }
 
-// RemoveOrders removes "orders" edges to Order entities.
-func (scu *SubCategoryUpdate) RemoveOrders(o ...*Order) *SubCategoryUpdate {
-	ids := make([]uuid.UUID, len(o))
-	for i := range o {
-		ids[i] = o[i].ID
+// RemoveProductItems removes "product_items" edges to ProductItem entities.
+func (scu *SubCategoryUpdate) RemoveProductItems(p ...*ProductItem) *SubCategoryUpdate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
 	}
-	return scu.RemoveOrderIDs(ids...)
+	return scu.RemoveProductItemIDs(ids...)
 }
 
 // ClearCategory clears the "category" edge to the Category entity.
@@ -244,28 +244,28 @@ func (scu *SubCategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := scu.mutation.UpdatedAt(); ok {
 		_spec.SetField(subcategory.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if scu.mutation.OrdersCleared() {
+	if scu.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   subcategory.OrdersTable,
-			Columns: []string{subcategory.OrdersColumn},
+			Table:   subcategory.ProductItemsTable,
+			Columns: []string{subcategory.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := scu.mutation.RemovedOrdersIDs(); len(nodes) > 0 && !scu.mutation.OrdersCleared() {
+	if nodes := scu.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !scu.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   subcategory.OrdersTable,
-			Columns: []string{subcategory.OrdersColumn},
+			Table:   subcategory.ProductItemsTable,
+			Columns: []string{subcategory.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -273,15 +273,15 @@ func (scu *SubCategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := scu.mutation.OrdersIDs(); len(nodes) > 0 {
+	if nodes := scu.mutation.ProductItemsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   subcategory.OrdersTable,
-			Columns: []string{subcategory.OrdersColumn},
+			Table:   subcategory.ProductItemsTable,
+			Columns: []string{subcategory.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -405,19 +405,19 @@ func (scuo *SubCategoryUpdateOne) SetUpdatedAt(t time.Time) *SubCategoryUpdateOn
 	return scuo
 }
 
-// AddOrderIDs adds the "orders" edge to the Order entity by IDs.
-func (scuo *SubCategoryUpdateOne) AddOrderIDs(ids ...uuid.UUID) *SubCategoryUpdateOne {
-	scuo.mutation.AddOrderIDs(ids...)
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (scuo *SubCategoryUpdateOne) AddProductItemIDs(ids ...uuid.UUID) *SubCategoryUpdateOne {
+	scuo.mutation.AddProductItemIDs(ids...)
 	return scuo
 }
 
-// AddOrders adds the "orders" edges to the Order entity.
-func (scuo *SubCategoryUpdateOne) AddOrders(o ...*Order) *SubCategoryUpdateOne {
-	ids := make([]uuid.UUID, len(o))
-	for i := range o {
-		ids[i] = o[i].ID
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (scuo *SubCategoryUpdateOne) AddProductItems(p ...*ProductItem) *SubCategoryUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
 	}
-	return scuo.AddOrderIDs(ids...)
+	return scuo.AddProductItemIDs(ids...)
 }
 
 // SetCategoryID sets the "category" edge to the Category entity by ID.
@@ -463,25 +463,25 @@ func (scuo *SubCategoryUpdateOne) Mutation() *SubCategoryMutation {
 	return scuo.mutation
 }
 
-// ClearOrders clears all "orders" edges to the Order entity.
-func (scuo *SubCategoryUpdateOne) ClearOrders() *SubCategoryUpdateOne {
-	scuo.mutation.ClearOrders()
+// ClearProductItems clears all "product_items" edges to the ProductItem entity.
+func (scuo *SubCategoryUpdateOne) ClearProductItems() *SubCategoryUpdateOne {
+	scuo.mutation.ClearProductItems()
 	return scuo
 }
 
-// RemoveOrderIDs removes the "orders" edge to Order entities by IDs.
-func (scuo *SubCategoryUpdateOne) RemoveOrderIDs(ids ...uuid.UUID) *SubCategoryUpdateOne {
-	scuo.mutation.RemoveOrderIDs(ids...)
+// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
+func (scuo *SubCategoryUpdateOne) RemoveProductItemIDs(ids ...uuid.UUID) *SubCategoryUpdateOne {
+	scuo.mutation.RemoveProductItemIDs(ids...)
 	return scuo
 }
 
-// RemoveOrders removes "orders" edges to Order entities.
-func (scuo *SubCategoryUpdateOne) RemoveOrders(o ...*Order) *SubCategoryUpdateOne {
-	ids := make([]uuid.UUID, len(o))
-	for i := range o {
-		ids[i] = o[i].ID
+// RemoveProductItems removes "product_items" edges to ProductItem entities.
+func (scuo *SubCategoryUpdateOne) RemoveProductItems(p ...*ProductItem) *SubCategoryUpdateOne {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
 	}
-	return scuo.RemoveOrderIDs(ids...)
+	return scuo.RemoveProductItemIDs(ids...)
 }
 
 // ClearCategory clears the "category" edge to the Category entity.
@@ -609,28 +609,28 @@ func (scuo *SubCategoryUpdateOne) sqlSave(ctx context.Context) (_node *SubCatego
 	if value, ok := scuo.mutation.UpdatedAt(); ok {
 		_spec.SetField(subcategory.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if scuo.mutation.OrdersCleared() {
+	if scuo.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   subcategory.OrdersTable,
-			Columns: []string{subcategory.OrdersColumn},
+			Table:   subcategory.ProductItemsTable,
+			Columns: []string{subcategory.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := scuo.mutation.RemovedOrdersIDs(); len(nodes) > 0 && !scuo.mutation.OrdersCleared() {
+	if nodes := scuo.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !scuo.mutation.ProductItemsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   subcategory.OrdersTable,
-			Columns: []string{subcategory.OrdersColumn},
+			Table:   subcategory.ProductItemsTable,
+			Columns: []string{subcategory.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -638,15 +638,15 @@ func (scuo *SubCategoryUpdateOne) sqlSave(ctx context.Context) (_node *SubCatego
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := scuo.mutation.OrdersIDs(); len(nodes) > 0 {
+	if nodes := scuo.mutation.ProductItemsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   subcategory.OrdersTable,
-			Columns: []string{subcategory.OrdersColumn},
+			Table:   subcategory.ProductItemsTable,
+			Columns: []string{subcategory.ProductItemsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

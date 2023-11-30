@@ -34,6 +34,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeOrders holds the string denoting the orders edge name in mutations.
 	EdgeOrders = "orders"
+	// EdgeProductItems holds the string denoting the product_items edge name in mutations.
+	EdgeProductItems = "product_items"
 	// EdgeCategories holds the string denoting the categories edge name in mutations.
 	EdgeCategories = "categories"
 	// EdgeSubCategories holds the string denoting the sub_categories edge name in mutations.
@@ -47,6 +49,13 @@ const (
 	OrdersInverseTable = "orders"
 	// OrdersColumn is the table column denoting the orders relation/edge.
 	OrdersColumn = "user_orders"
+	// ProductItemsTable is the table that holds the product_items relation/edge.
+	ProductItemsTable = "product_items"
+	// ProductItemsInverseTable is the table name for the ProductItem entity.
+	// It exists in this package in order to avoid circular dependency with the "productitem" package.
+	ProductItemsInverseTable = "product_items"
+	// ProductItemsColumn is the table column denoting the product_items relation/edge.
+	ProductItemsColumn = "user_product_items"
 	// CategoriesTable is the table that holds the categories relation/edge.
 	CategoriesTable = "categories"
 	// CategoriesInverseTable is the table name for the Category entity.
@@ -195,6 +204,20 @@ func ByOrders(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByProductItemsCount orders the results by product_items count.
+func ByProductItemsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newProductItemsStep(), opts...)
+	}
+}
+
+// ByProductItems orders the results by product_items terms.
+func ByProductItems(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProductItemsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByCategoriesCount orders the results by categories count.
 func ByCategoriesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -227,6 +250,13 @@ func newOrdersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(OrdersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, OrdersTable, OrdersColumn),
+	)
+}
+func newProductItemsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProductItemsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ProductItemsTable, ProductItemsColumn),
 	)
 }
 func newCategoriesStep() *sqlgraph.Step {

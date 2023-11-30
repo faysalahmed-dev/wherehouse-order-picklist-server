@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
@@ -139,6 +140,21 @@ func (uc *UserCreate) AddOrders(o ...*Order) *UserCreate {
 		ids[i] = o[i].ID
 	}
 	return uc.AddOrderIDs(ids...)
+}
+
+// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
+func (uc *UserCreate) AddProductItemIDs(ids ...uuid.UUID) *UserCreate {
+	uc.mutation.AddProductItemIDs(ids...)
+	return uc
+}
+
+// AddProductItems adds the "product_items" edges to the ProductItem entity.
+func (uc *UserCreate) AddProductItems(p ...*ProductItem) *UserCreate {
+	ids := make([]uuid.UUID, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uc.AddProductItemIDs(ids...)
 }
 
 // AddCategoryIDs adds the "categories" edge to the Category entity by IDs.
@@ -354,6 +370,22 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := uc.mutation.ProductItemsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ProductItemsTable,
+			Columns: []string{user.ProductItemsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

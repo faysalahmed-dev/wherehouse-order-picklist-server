@@ -44,13 +44,15 @@ type User struct {
 type UserEdges struct {
 	// Orders holds the value of the orders edge.
 	Orders []*Order `json:"orders,omitempty"`
+	// ProductItems holds the value of the product_items edge.
+	ProductItems []*ProductItem `json:"product_items,omitempty"`
 	// Categories holds the value of the categories edge.
 	Categories []*Category `json:"categories,omitempty"`
 	// SubCategories holds the value of the sub_categories edge.
 	SubCategories []*SubCategory `json:"sub_categories,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [4]bool
 }
 
 // OrdersOrErr returns the Orders value or an error if the edge
@@ -62,10 +64,19 @@ func (e UserEdges) OrdersOrErr() ([]*Order, error) {
 	return nil, &NotLoadedError{edge: "orders"}
 }
 
+// ProductItemsOrErr returns the ProductItems value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ProductItemsOrErr() ([]*ProductItem, error) {
+	if e.loadedTypes[1] {
+		return e.ProductItems, nil
+	}
+	return nil, &NotLoadedError{edge: "product_items"}
+}
+
 // CategoriesOrErr returns the Categories value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) CategoriesOrErr() ([]*Category, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.Categories, nil
 	}
 	return nil, &NotLoadedError{edge: "categories"}
@@ -74,7 +85,7 @@ func (e UserEdges) CategoriesOrErr() ([]*Category, error) {
 // SubCategoriesOrErr returns the SubCategories value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) SubCategoriesOrErr() ([]*SubCategory, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.SubCategories, nil
 	}
 	return nil, &NotLoadedError{edge: "sub_categories"}
@@ -180,6 +191,11 @@ func (u *User) Value(name string) (ent.Value, error) {
 // QueryOrders queries the "orders" edge of the User entity.
 func (u *User) QueryOrders() *OrderQuery {
 	return NewUserClient(u.config).QueryOrders(u)
+}
+
+// QueryProductItems queries the "product_items" edge of the User entity.
+func (u *User) QueryProductItems() *ProductItemQuery {
+	return NewUserClient(u.config).QueryProductItems(u)
 }
 
 // QueryCategories queries the "categories" edge of the User entity.

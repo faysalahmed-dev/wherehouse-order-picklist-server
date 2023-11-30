@@ -12,8 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
@@ -22,14 +22,14 @@ import (
 // SubCategoryQuery is the builder for querying SubCategory entities.
 type SubCategoryQuery struct {
 	config
-	ctx          *QueryContext
-	order        []subcategory.OrderOption
-	inters       []Interceptor
-	predicates   []predicate.SubCategory
-	withOrders   *OrderQuery
-	withCategory *CategoryQuery
-	withUser     *UserQuery
-	withFKs      bool
+	ctx              *QueryContext
+	order            []subcategory.OrderOption
+	inters           []Interceptor
+	predicates       []predicate.SubCategory
+	withProductItems *ProductItemQuery
+	withCategory     *CategoryQuery
+	withUser         *UserQuery
+	withFKs          bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -66,9 +66,9 @@ func (scq *SubCategoryQuery) Order(o ...subcategory.OrderOption) *SubCategoryQue
 	return scq
 }
 
-// QueryOrders chains the current query on the "orders" edge.
-func (scq *SubCategoryQuery) QueryOrders() *OrderQuery {
-	query := (&OrderClient{config: scq.config}).Query()
+// QueryProductItems chains the current query on the "product_items" edge.
+func (scq *SubCategoryQuery) QueryProductItems() *ProductItemQuery {
+	query := (&ProductItemClient{config: scq.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := scq.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -79,8 +79,8 @@ func (scq *SubCategoryQuery) QueryOrders() *OrderQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(subcategory.Table, subcategory.FieldID, selector),
-			sqlgraph.To(order.Table, order.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, subcategory.OrdersTable, subcategory.OrdersColumn),
+			sqlgraph.To(productitem.Table, productitem.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, subcategory.ProductItemsTable, subcategory.ProductItemsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(scq.driver.Dialect(), step)
 		return fromU, nil
@@ -319,28 +319,28 @@ func (scq *SubCategoryQuery) Clone() *SubCategoryQuery {
 		return nil
 	}
 	return &SubCategoryQuery{
-		config:       scq.config,
-		ctx:          scq.ctx.Clone(),
-		order:        append([]subcategory.OrderOption{}, scq.order...),
-		inters:       append([]Interceptor{}, scq.inters...),
-		predicates:   append([]predicate.SubCategory{}, scq.predicates...),
-		withOrders:   scq.withOrders.Clone(),
-		withCategory: scq.withCategory.Clone(),
-		withUser:     scq.withUser.Clone(),
+		config:           scq.config,
+		ctx:              scq.ctx.Clone(),
+		order:            append([]subcategory.OrderOption{}, scq.order...),
+		inters:           append([]Interceptor{}, scq.inters...),
+		predicates:       append([]predicate.SubCategory{}, scq.predicates...),
+		withProductItems: scq.withProductItems.Clone(),
+		withCategory:     scq.withCategory.Clone(),
+		withUser:         scq.withUser.Clone(),
 		// clone intermediate query.
 		sql:  scq.sql.Clone(),
 		path: scq.path,
 	}
 }
 
-// WithOrders tells the query-builder to eager-load the nodes that are connected to
-// the "orders" edge. The optional arguments are used to configure the query builder of the edge.
-func (scq *SubCategoryQuery) WithOrders(opts ...func(*OrderQuery)) *SubCategoryQuery {
-	query := (&OrderClient{config: scq.config}).Query()
+// WithProductItems tells the query-builder to eager-load the nodes that are connected to
+// the "product_items" edge. The optional arguments are used to configure the query builder of the edge.
+func (scq *SubCategoryQuery) WithProductItems(opts ...func(*ProductItemQuery)) *SubCategoryQuery {
+	query := (&ProductItemClient{config: scq.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	scq.withOrders = query
+	scq.withProductItems = query
 	return scq
 }
 
@@ -446,7 +446,7 @@ func (scq *SubCategoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 		withFKs     = scq.withFKs
 		_spec       = scq.querySpec()
 		loadedTypes = [3]bool{
-			scq.withOrders != nil,
+			scq.withProductItems != nil,
 			scq.withCategory != nil,
 			scq.withUser != nil,
 		}
@@ -475,10 +475,10 @@ func (scq *SubCategoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := scq.withOrders; query != nil {
-		if err := scq.loadOrders(ctx, query, nodes,
-			func(n *SubCategory) { n.Edges.Orders = []*Order{} },
-			func(n *SubCategory, e *Order) { n.Edges.Orders = append(n.Edges.Orders, e) }); err != nil {
+	if query := scq.withProductItems; query != nil {
+		if err := scq.loadProductItems(ctx, query, nodes,
+			func(n *SubCategory) { n.Edges.ProductItems = []*ProductItem{} },
+			func(n *SubCategory, e *ProductItem) { n.Edges.ProductItems = append(n.Edges.ProductItems, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -497,7 +497,7 @@ func (scq *SubCategoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	return nodes, nil
 }
 
-func (scq *SubCategoryQuery) loadOrders(ctx context.Context, query *OrderQuery, nodes []*SubCategory, init func(*SubCategory), assign func(*SubCategory, *Order)) error {
+func (scq *SubCategoryQuery) loadProductItems(ctx context.Context, query *ProductItemQuery, nodes []*SubCategory, init func(*SubCategory), assign func(*SubCategory, *ProductItem)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*SubCategory)
 	for i := range nodes {
@@ -508,21 +508,21 @@ func (scq *SubCategoryQuery) loadOrders(ctx context.Context, query *OrderQuery, 
 		}
 	}
 	query.withFKs = true
-	query.Where(predicate.Order(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(subcategory.OrdersColumn), fks...))
+	query.Where(predicate.ProductItem(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(subcategory.ProductItemsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.sub_category_orders
+		fk := n.sub_category_product_items
 		if fk == nil {
-			return fmt.Errorf(`foreign-key "sub_category_orders" is nil for node %v`, n.ID)
+			return fmt.Errorf(`foreign-key "sub_category_product_items" is nil for node %v`, n.ID)
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "sub_category_orders" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "sub_category_product_items" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
