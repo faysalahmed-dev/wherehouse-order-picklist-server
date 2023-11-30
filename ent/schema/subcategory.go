@@ -32,7 +32,7 @@ func (SubCategory) Fields() []ent.Field {
 // Edges of the User.
 func (SubCategory) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("orders", Order.Type).Annotations(entsql.OnDelete(entsql.Cascade)),
+		edge.To("product_items", ProductItem.Type).Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.From("category", Category.Type).
 			Ref("sub_categories").
 			Unique(),

@@ -39,6 +39,7 @@ func (User) Fields() []ent.Field {
 func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("orders", Order.Type).Annotations(entsql.OnDelete(entsql.Cascade)),
+		edge.To("product_items", ProductItem.Type).Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("categories", Category.Type).Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("sub_categories", SubCategory.Type),
 	}
