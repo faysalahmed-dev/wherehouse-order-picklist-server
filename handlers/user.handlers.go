@@ -30,15 +30,11 @@ func (h *UserHandler) RegisterUser(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "user already exits")
 	}
 
-	u, err := schema.CreateNewUserParams(userParams)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-	}
-	newUser, err := h.userStore.InsertUser(u)
+	newUser, err := h.userStore.InsertUser(schema.CreateNewUserParams(userParams))
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable create user")
 	}
-	token, err := helpers.GenToken(newUser.ID.String())
+	token, err := helpers.GenToken(newUser.ID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable gen token")
 	}
@@ -72,7 +68,7 @@ func (h *UserHandler) LoginUser(c *fiber.Ctx) error {
 	if !helpers.CheckPasswordHash(userParams.Password, user.Password) {
 		return fiber.NewError(fiber.StatusForbidden, "password not match")
 	}
-	token, err := helpers.GenToken(user.ID.String())
+	token, err := helpers.GenToken(user.ID)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable gen token")
 	}
