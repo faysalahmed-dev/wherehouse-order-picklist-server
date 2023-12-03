@@ -5,12 +5,18 @@ import (
 	"log"
 	"os"
 
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/schema"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var DBClient *gorm.DB
+
+type Store struct {
+	User store.UserStore
+}
 
 func ConnectToDB() *gorm.DB {
 	HOST := os.Getenv("DB_HOST")
@@ -25,7 +31,7 @@ func ConnectToDB() *gorm.DB {
 	if err != nil {
 		log.Fatalf("failed opening connection to postgres: %v", err)
 	}
-	// db.AutoMigrate(&Product{})
+	db.AutoMigrate(&schema.User{})
 	DBClient = db
 	fmt.Println("database connected...")
 	return db
