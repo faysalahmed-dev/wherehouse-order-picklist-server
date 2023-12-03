@@ -1,20 +1,23 @@
 package routes
 
 import (
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/handlers"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/middlewares"
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterUserRoutes(r fiber.Router) {
+func RegisterUserRoutes(r fiber.Router, s *store.UserStore) {
+	h := handlers.NewUserHandler(*s)
 	userRoute := r.Group("/user")
-	userRoute.Post("/login", handlers.LoginUser)
-	userRoute.Post("/register", handlers.RegisterUser)
+	userRoute.Post("/login", h.LoginUser)
+	userRoute.Post("/register", h.RegisterUser)
 
-	userRoute.Use(middlewares.Authorized)
-	userRoute.Get("/profile", handlers.Profile)
-	userRoute.Use(middlewares.AdminOnly)
-	userRoute.Get("/users", handlers.GetAllUser)
-	userRoute.Get("/search-users", handlers.SearchUserByName)
-	userRoute.Group("/:id").Patch("", handlers.UpdateUserStatus).Delete("", handlers.DeleteUser)
+	authM := middlewares.NewAuthHandler(*s)
+	userRoute.Use(authM.Authorized)
+	userRoute.Get("/profile", h.Profile)
+	userRoute.Use(authM.AdminOnly)
+	// userRoute.Get("/users", handlers.GetAllUser)
+	// userRoute.Get("/search-users", handlers.SearchUserByName)
+	// userRoute.Group("/:id").Patch("", handlers.UpdateUserStatus).Delete("", handlers.DeleteUser)
 }
