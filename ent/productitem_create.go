@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
@@ -26,18 +27,6 @@ type ProductItemCreate struct {
 // SetName sets the "name" field.
 func (pic *ProductItemCreate) SetName(s string) *ProductItemCreate {
 	pic.mutation.SetName(s)
-	return pic
-}
-
-// SetAmount sets the "amount" field.
-func (pic *ProductItemCreate) SetAmount(s string) *ProductItemCreate {
-	pic.mutation.SetAmount(s)
-	return pic
-}
-
-// SetUnitType sets the "unit_type" field.
-func (pic *ProductItemCreate) SetUnitType(s string) *ProductItemCreate {
-	pic.mutation.SetUnitType(s)
 	return pic
 }
 
@@ -100,6 +89,25 @@ func (pic *ProductItemCreate) SetNillableSubCategoriesID(id *uuid.UUID) *Product
 // SetSubCategories sets the "sub_categories" edge to the SubCategory entity.
 func (pic *ProductItemCreate) SetSubCategories(s *SubCategory) *ProductItemCreate {
 	return pic.SetSubCategoriesID(s.ID)
+}
+
+// SetOrderID sets the "order" edge to the Order entity by ID.
+func (pic *ProductItemCreate) SetOrderID(id uuid.UUID) *ProductItemCreate {
+	pic.mutation.SetOrderID(id)
+	return pic
+}
+
+// SetNillableOrderID sets the "order" edge to the Order entity by ID if the given value is not nil.
+func (pic *ProductItemCreate) SetNillableOrderID(id *uuid.UUID) *ProductItemCreate {
+	if id != nil {
+		pic = pic.SetOrderID(*id)
+	}
+	return pic
+}
+
+// SetOrder sets the "order" edge to the Order entity.
+func (pic *ProductItemCreate) SetOrder(o *Order) *ProductItemCreate {
+	return pic.SetOrderID(o.ID)
 }
 
 // SetUserID sets the "user" edge to the User entity by ID.
@@ -180,22 +188,6 @@ func (pic *ProductItemCreate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ProductItem.name": %w`, err)}
 		}
 	}
-	if _, ok := pic.mutation.Amount(); !ok {
-		return &ValidationError{Name: "amount", err: errors.New(`ent: missing required field "ProductItem.amount"`)}
-	}
-	if v, ok := pic.mutation.Amount(); ok {
-		if err := productitem.AmountValidator(v); err != nil {
-			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "ProductItem.amount": %w`, err)}
-		}
-	}
-	if _, ok := pic.mutation.UnitType(); !ok {
-		return &ValidationError{Name: "unit_type", err: errors.New(`ent: missing required field "ProductItem.unit_type"`)}
-	}
-	if v, ok := pic.mutation.UnitType(); ok {
-		if err := productitem.UnitTypeValidator(v); err != nil {
-			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "ProductItem.unit_type": %w`, err)}
-		}
-	}
 	if _, ok := pic.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ProductItem.created_at"`)}
 	}
@@ -241,14 +233,6 @@ func (pic *ProductItemCreate) createSpec() (*ProductItem, *sqlgraph.CreateSpec) 
 		_spec.SetField(productitem.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
-	if value, ok := pic.mutation.Amount(); ok {
-		_spec.SetField(productitem.FieldAmount, field.TypeString, value)
-		_node.Amount = value
-	}
-	if value, ok := pic.mutation.UnitType(); ok {
-		_spec.SetField(productitem.FieldUnitType, field.TypeString, value)
-		_node.UnitType = value
-	}
 	if value, ok := pic.mutation.CreatedAt(); ok {
 		_spec.SetField(productitem.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -272,6 +256,23 @@ func (pic *ProductItemCreate) createSpec() (*ProductItem, *sqlgraph.CreateSpec) 
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.sub_category_product_items = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := pic.mutation.OrderIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   productitem.OrderTable,
+			Columns: []string{productitem.OrderColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.order_product = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := pic.mutation.UserIDs(); len(nodes) > 0 {

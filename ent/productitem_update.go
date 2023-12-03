@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
@@ -21,8 +22,9 @@ import (
 // ProductItemUpdate is the builder for updating ProductItem entities.
 type ProductItemUpdate struct {
 	config
-	hooks    []Hook
-	mutation *ProductItemMutation
+	hooks     []Hook
+	mutation  *ProductItemMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the ProductItemUpdate builder.
@@ -37,15 +39,11 @@ func (piu *ProductItemUpdate) SetName(s string) *ProductItemUpdate {
 	return piu
 }
 
-// SetAmount sets the "amount" field.
-func (piu *ProductItemUpdate) SetAmount(s string) *ProductItemUpdate {
-	piu.mutation.SetAmount(s)
-	return piu
-}
-
-// SetUnitType sets the "unit_type" field.
-func (piu *ProductItemUpdate) SetUnitType(s string) *ProductItemUpdate {
-	piu.mutation.SetUnitType(s)
+// SetNillableName sets the "name" field if the given value is not nil.
+func (piu *ProductItemUpdate) SetNillableName(s *string) *ProductItemUpdate {
+	if s != nil {
+		piu.SetName(*s)
+	}
 	return piu
 }
 
@@ -88,6 +86,25 @@ func (piu *ProductItemUpdate) SetSubCategories(s *SubCategory) *ProductItemUpdat
 	return piu.SetSubCategoriesID(s.ID)
 }
 
+// SetOrderID sets the "order" edge to the Order entity by ID.
+func (piu *ProductItemUpdate) SetOrderID(id uuid.UUID) *ProductItemUpdate {
+	piu.mutation.SetOrderID(id)
+	return piu
+}
+
+// SetNillableOrderID sets the "order" edge to the Order entity by ID if the given value is not nil.
+func (piu *ProductItemUpdate) SetNillableOrderID(id *uuid.UUID) *ProductItemUpdate {
+	if id != nil {
+		piu = piu.SetOrderID(*id)
+	}
+	return piu
+}
+
+// SetOrder sets the "order" edge to the Order entity.
+func (piu *ProductItemUpdate) SetOrder(o *Order) *ProductItemUpdate {
+	return piu.SetOrderID(o.ID)
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (piu *ProductItemUpdate) SetUserID(id uuid.UUID) *ProductItemUpdate {
 	piu.mutation.SetUserID(id)
@@ -115,6 +132,12 @@ func (piu *ProductItemUpdate) Mutation() *ProductItemMutation {
 // ClearSubCategories clears the "sub_categories" edge to the SubCategory entity.
 func (piu *ProductItemUpdate) ClearSubCategories() *ProductItemUpdate {
 	piu.mutation.ClearSubCategories()
+	return piu
+}
+
+// ClearOrder clears the "order" edge to the Order entity.
+func (piu *ProductItemUpdate) ClearOrder() *ProductItemUpdate {
+	piu.mutation.ClearOrder()
 	return piu
 }
 
@@ -167,17 +190,13 @@ func (piu *ProductItemUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ProductItem.name": %w`, err)}
 		}
 	}
-	if v, ok := piu.mutation.Amount(); ok {
-		if err := productitem.AmountValidator(v); err != nil {
-			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "ProductItem.amount": %w`, err)}
-		}
-	}
-	if v, ok := piu.mutation.UnitType(); ok {
-		if err := productitem.UnitTypeValidator(v); err != nil {
-			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "ProductItem.unit_type": %w`, err)}
-		}
-	}
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (piu *ProductItemUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ProductItemUpdate {
+	piu.modifiers = append(piu.modifiers, modifiers...)
+	return piu
 }
 
 func (piu *ProductItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
@@ -194,12 +213,6 @@ func (piu *ProductItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := piu.mutation.Name(); ok {
 		_spec.SetField(productitem.FieldName, field.TypeString, value)
-	}
-	if value, ok := piu.mutation.Amount(); ok {
-		_spec.SetField(productitem.FieldAmount, field.TypeString, value)
-	}
-	if value, ok := piu.mutation.UnitType(); ok {
-		_spec.SetField(productitem.FieldUnitType, field.TypeString, value)
 	}
 	if value, ok := piu.mutation.CreatedAt(); ok {
 		_spec.SetField(productitem.FieldCreatedAt, field.TypeTime, value)
@@ -236,6 +249,35 @@ func (piu *ProductItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if piu.mutation.OrderCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   productitem.OrderTable,
+			Columns: []string{productitem.OrderColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := piu.mutation.OrderIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   productitem.OrderTable,
+			Columns: []string{productitem.OrderColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if piu.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -265,6 +307,7 @@ func (piu *ProductItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(piu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, piu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{productitem.Label}
@@ -280,9 +323,10 @@ func (piu *ProductItemUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // ProductItemUpdateOne is the builder for updating a single ProductItem entity.
 type ProductItemUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *ProductItemMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *ProductItemMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetName sets the "name" field.
@@ -291,15 +335,11 @@ func (piuo *ProductItemUpdateOne) SetName(s string) *ProductItemUpdateOne {
 	return piuo
 }
 
-// SetAmount sets the "amount" field.
-func (piuo *ProductItemUpdateOne) SetAmount(s string) *ProductItemUpdateOne {
-	piuo.mutation.SetAmount(s)
-	return piuo
-}
-
-// SetUnitType sets the "unit_type" field.
-func (piuo *ProductItemUpdateOne) SetUnitType(s string) *ProductItemUpdateOne {
-	piuo.mutation.SetUnitType(s)
+// SetNillableName sets the "name" field if the given value is not nil.
+func (piuo *ProductItemUpdateOne) SetNillableName(s *string) *ProductItemUpdateOne {
+	if s != nil {
+		piuo.SetName(*s)
+	}
 	return piuo
 }
 
@@ -342,6 +382,25 @@ func (piuo *ProductItemUpdateOne) SetSubCategories(s *SubCategory) *ProductItemU
 	return piuo.SetSubCategoriesID(s.ID)
 }
 
+// SetOrderID sets the "order" edge to the Order entity by ID.
+func (piuo *ProductItemUpdateOne) SetOrderID(id uuid.UUID) *ProductItemUpdateOne {
+	piuo.mutation.SetOrderID(id)
+	return piuo
+}
+
+// SetNillableOrderID sets the "order" edge to the Order entity by ID if the given value is not nil.
+func (piuo *ProductItemUpdateOne) SetNillableOrderID(id *uuid.UUID) *ProductItemUpdateOne {
+	if id != nil {
+		piuo = piuo.SetOrderID(*id)
+	}
+	return piuo
+}
+
+// SetOrder sets the "order" edge to the Order entity.
+func (piuo *ProductItemUpdateOne) SetOrder(o *Order) *ProductItemUpdateOne {
+	return piuo.SetOrderID(o.ID)
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (piuo *ProductItemUpdateOne) SetUserID(id uuid.UUID) *ProductItemUpdateOne {
 	piuo.mutation.SetUserID(id)
@@ -369,6 +428,12 @@ func (piuo *ProductItemUpdateOne) Mutation() *ProductItemMutation {
 // ClearSubCategories clears the "sub_categories" edge to the SubCategory entity.
 func (piuo *ProductItemUpdateOne) ClearSubCategories() *ProductItemUpdateOne {
 	piuo.mutation.ClearSubCategories()
+	return piuo
+}
+
+// ClearOrder clears the "order" edge to the Order entity.
+func (piuo *ProductItemUpdateOne) ClearOrder() *ProductItemUpdateOne {
+	piuo.mutation.ClearOrder()
 	return piuo
 }
 
@@ -434,17 +499,13 @@ func (piuo *ProductItemUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ProductItem.name": %w`, err)}
 		}
 	}
-	if v, ok := piuo.mutation.Amount(); ok {
-		if err := productitem.AmountValidator(v); err != nil {
-			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "ProductItem.amount": %w`, err)}
-		}
-	}
-	if v, ok := piuo.mutation.UnitType(); ok {
-		if err := productitem.UnitTypeValidator(v); err != nil {
-			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "ProductItem.unit_type": %w`, err)}
-		}
-	}
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (piuo *ProductItemUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *ProductItemUpdateOne {
+	piuo.modifiers = append(piuo.modifiers, modifiers...)
+	return piuo
 }
 
 func (piuo *ProductItemUpdateOne) sqlSave(ctx context.Context) (_node *ProductItem, err error) {
@@ -478,12 +539,6 @@ func (piuo *ProductItemUpdateOne) sqlSave(ctx context.Context) (_node *ProductIt
 	}
 	if value, ok := piuo.mutation.Name(); ok {
 		_spec.SetField(productitem.FieldName, field.TypeString, value)
-	}
-	if value, ok := piuo.mutation.Amount(); ok {
-		_spec.SetField(productitem.FieldAmount, field.TypeString, value)
-	}
-	if value, ok := piuo.mutation.UnitType(); ok {
-		_spec.SetField(productitem.FieldUnitType, field.TypeString, value)
 	}
 	if value, ok := piuo.mutation.CreatedAt(); ok {
 		_spec.SetField(productitem.FieldCreatedAt, field.TypeTime, value)
@@ -520,6 +575,35 @@ func (piuo *ProductItemUpdateOne) sqlSave(ctx context.Context) (_node *ProductIt
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if piuo.mutation.OrderCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   productitem.OrderTable,
+			Columns: []string{productitem.OrderColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := piuo.mutation.OrderIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   productitem.OrderTable,
+			Columns: []string{productitem.OrderColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(order.FieldID, field.TypeUUID),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if piuo.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -549,6 +633,7 @@ func (piuo *ProductItemUpdateOne) sqlSave(ctx context.Context) (_node *ProductIt
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(piuo.modifiers...)
 	_node = &ProductItem{config: piuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

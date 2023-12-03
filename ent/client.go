@@ -42,9 +42,7 @@ type Client struct {
 
 // NewClient creates a new client configured with the given options.
 func NewClient(opts ...Option) *Client {
-	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
-	cfg.options(opts...)
-	client := &Client{config: cfg}
+	client := &Client{config: newConfig(opts...)}
 	client.init()
 	return client
 }
@@ -75,6 +73,13 @@ type (
 	// Option function to configure the client.
 	Option func(*config)
 )
+
+// newConfig creates a new config for the client.
+func newConfig(opts ...Option) config {
+	cfg := config{log: log.Println, hooks: &hooks{}, inters: &inters{}}
+	cfg.options(opts...)
+	return cfg
+}
 
 // options applies the options on the config object.
 func (c *config) options(opts ...Option) {
@@ -506,15 +511,15 @@ func (c *OrderClient) GetX(ctx context.Context, id uuid.UUID) *Order {
 	return obj
 }
 
-// QueryProductItems queries the product_items edge of a Order.
-func (c *OrderClient) QueryProductItems(o *Order) *ProductItemQuery {
+// QueryProduct queries the product edge of a Order.
+func (c *OrderClient) QueryProduct(o *Order) *ProductItemQuery {
 	query := (&ProductItemClient{config: c.config}).Query()
 	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
 		id := o.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(order.Table, order.FieldID, id),
 			sqlgraph.To(productitem.Table, productitem.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, order.ProductItemsTable, order.ProductItemsColumn),
+			sqlgraph.Edge(sqlgraph.O2O, false, order.ProductTable, order.ProductColumn),
 		)
 		fromV = sqlgraph.Neighbors(o.driver.Dialect(), step)
 		return fromV, nil
@@ -680,6 +685,22 @@ func (c *ProductItemClient) QuerySubCategories(pi *ProductItem) *SubCategoryQuer
 			sqlgraph.From(productitem.Table, productitem.FieldID, id),
 			sqlgraph.To(subcategory.Table, subcategory.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, productitem.SubCategoriesTable, productitem.SubCategoriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(pi.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOrder queries the order edge of a ProductItem.
+func (c *ProductItemClient) QueryOrder(pi *ProductItem) *OrderQuery {
+	query := (&OrderClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := pi.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(productitem.Table, productitem.FieldID, id),
+			sqlgraph.To(order.Table, order.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, productitem.OrderTable, productitem.OrderColumn),
 		)
 		fromV = sqlgraph.Neighbors(pi.driver.Dialect(), step)
 		return fromV, nil

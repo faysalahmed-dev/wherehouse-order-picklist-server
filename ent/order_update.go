@@ -21,13 +21,42 @@ import (
 // OrderUpdate is the builder for updating Order entities.
 type OrderUpdate struct {
 	config
-	hooks    []Hook
-	mutation *OrderMutation
+	hooks     []Hook
+	mutation  *OrderMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the OrderUpdate builder.
 func (ou *OrderUpdate) Where(ps ...predicate.Order) *OrderUpdate {
 	ou.mutation.Where(ps...)
+	return ou
+}
+
+// SetAmount sets the "amount" field.
+func (ou *OrderUpdate) SetAmount(s string) *OrderUpdate {
+	ou.mutation.SetAmount(s)
+	return ou
+}
+
+// SetNillableAmount sets the "amount" field if the given value is not nil.
+func (ou *OrderUpdate) SetNillableAmount(s *string) *OrderUpdate {
+	if s != nil {
+		ou.SetAmount(*s)
+	}
+	return ou
+}
+
+// SetUnitType sets the "unit_type" field.
+func (ou *OrderUpdate) SetUnitType(s string) *OrderUpdate {
+	ou.mutation.SetUnitType(s)
+	return ou
+}
+
+// SetNillableUnitType sets the "unit_type" field if the given value is not nil.
+func (ou *OrderUpdate) SetNillableUnitType(s *string) *OrderUpdate {
+	if s != nil {
+		ou.SetUnitType(*s)
+	}
 	return ou
 }
 
@@ -65,32 +94,20 @@ func (ou *OrderUpdate) SetUpdatedAt(t time.Time) *OrderUpdate {
 	return ou
 }
 
-// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
-func (ou *OrderUpdate) AddProductItemIDs(ids ...uuid.UUID) *OrderUpdate {
-	ou.mutation.AddProductItemIDs(ids...)
+// SetProductID sets the "product" edge to the ProductItem entity by ID.
+func (ou *OrderUpdate) SetProductID(id uuid.UUID) *OrderUpdate {
+	ou.mutation.SetProductID(id)
 	return ou
 }
 
-// AddProductItems adds the "product_items" edges to the ProductItem entity.
-func (ou *OrderUpdate) AddProductItems(p ...*ProductItem) *OrderUpdate {
-	ids := make([]uuid.UUID, len(p))
-	for i := range p {
-		ids[i] = p[i].ID
-	}
-	return ou.AddProductItemIDs(ids...)
+// SetProduct sets the "product" edge to the ProductItem entity.
+func (ou *OrderUpdate) SetProduct(p *ProductItem) *OrderUpdate {
+	return ou.SetProductID(p.ID)
 }
 
 // SetUserID sets the "user" edge to the User entity by ID.
 func (ou *OrderUpdate) SetUserID(id uuid.UUID) *OrderUpdate {
 	ou.mutation.SetUserID(id)
-	return ou
-}
-
-// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
-func (ou *OrderUpdate) SetNillableUserID(id *uuid.UUID) *OrderUpdate {
-	if id != nil {
-		ou = ou.SetUserID(*id)
-	}
 	return ou
 }
 
@@ -104,25 +121,10 @@ func (ou *OrderUpdate) Mutation() *OrderMutation {
 	return ou.mutation
 }
 
-// ClearProductItems clears all "product_items" edges to the ProductItem entity.
-func (ou *OrderUpdate) ClearProductItems() *OrderUpdate {
-	ou.mutation.ClearProductItems()
+// ClearProduct clears the "product" edge to the ProductItem entity.
+func (ou *OrderUpdate) ClearProduct() *OrderUpdate {
+	ou.mutation.ClearProduct()
 	return ou
-}
-
-// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
-func (ou *OrderUpdate) RemoveProductItemIDs(ids ...uuid.UUID) *OrderUpdate {
-	ou.mutation.RemoveProductItemIDs(ids...)
-	return ou
-}
-
-// RemoveProductItems removes "product_items" edges to ProductItem entities.
-func (ou *OrderUpdate) RemoveProductItems(p ...*ProductItem) *OrderUpdate {
-	ids := make([]uuid.UUID, len(p))
-	for i := range p {
-		ids[i] = p[i].ID
-	}
-	return ou.RemoveProductItemIDs(ids...)
 }
 
 // ClearUser clears the "user" edge to the User entity.
@@ -169,12 +171,34 @@ func (ou *OrderUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (ou *OrderUpdate) check() error {
+	if v, ok := ou.mutation.Amount(); ok {
+		if err := order.AmountValidator(v); err != nil {
+			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "Order.amount": %w`, err)}
+		}
+	}
+	if v, ok := ou.mutation.UnitType(); ok {
+		if err := order.UnitTypeValidator(v); err != nil {
+			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "Order.unit_type": %w`, err)}
+		}
+	}
 	if v, ok := ou.mutation.Status(); ok {
 		if err := order.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Order.status": %w`, err)}
 		}
 	}
+	if _, ok := ou.mutation.ProductID(); ou.mutation.ProductCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Order.product"`)
+	}
+	if _, ok := ou.mutation.UserID(); ou.mutation.UserCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Order.user"`)
+	}
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (ou *OrderUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OrderUpdate {
+	ou.modifiers = append(ou.modifiers, modifiers...)
+	return ou
 }
 
 func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
@@ -189,6 +213,12 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
+	if value, ok := ou.mutation.Amount(); ok {
+		_spec.SetField(order.FieldAmount, field.TypeString, value)
+	}
+	if value, ok := ou.mutation.UnitType(); ok {
+		_spec.SetField(order.FieldUnitType, field.TypeString, value)
+	}
 	if value, ok := ou.mutation.Status(); ok {
 		_spec.SetField(order.FieldStatus, field.TypeEnum, value)
 	}
@@ -198,12 +228,12 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := ou.mutation.UpdatedAt(); ok {
 		_spec.SetField(order.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if ou.mutation.ProductItemsCleared() {
+	if ou.mutation.ProductCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
-			Table:   order.ProductItemsTable,
-			Columns: []string{order.ProductItemsColumn},
+			Table:   order.ProductTable,
+			Columns: []string{order.ProductColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
@@ -211,28 +241,12 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := ou.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !ou.mutation.ProductItemsCleared() {
+	if nodes := ou.mutation.ProductIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
-			Table:   order.ProductItemsTable,
-			Columns: []string{order.ProductItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := ou.mutation.ProductItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ProductItemsTable,
-			Columns: []string{order.ProductItemsColumn},
+			Table:   order.ProductTable,
+			Columns: []string{order.ProductColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
@@ -272,6 +286,7 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(ou.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, ou.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{order.Label}
@@ -287,9 +302,38 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // OrderUpdateOne is the builder for updating a single Order entity.
 type OrderUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *OrderMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *OrderMutation
+	modifiers []func(*sql.UpdateBuilder)
+}
+
+// SetAmount sets the "amount" field.
+func (ouo *OrderUpdateOne) SetAmount(s string) *OrderUpdateOne {
+	ouo.mutation.SetAmount(s)
+	return ouo
+}
+
+// SetNillableAmount sets the "amount" field if the given value is not nil.
+func (ouo *OrderUpdateOne) SetNillableAmount(s *string) *OrderUpdateOne {
+	if s != nil {
+		ouo.SetAmount(*s)
+	}
+	return ouo
+}
+
+// SetUnitType sets the "unit_type" field.
+func (ouo *OrderUpdateOne) SetUnitType(s string) *OrderUpdateOne {
+	ouo.mutation.SetUnitType(s)
+	return ouo
+}
+
+// SetNillableUnitType sets the "unit_type" field if the given value is not nil.
+func (ouo *OrderUpdateOne) SetNillableUnitType(s *string) *OrderUpdateOne {
+	if s != nil {
+		ouo.SetUnitType(*s)
+	}
+	return ouo
 }
 
 // SetStatus sets the "status" field.
@@ -326,32 +370,20 @@ func (ouo *OrderUpdateOne) SetUpdatedAt(t time.Time) *OrderUpdateOne {
 	return ouo
 }
 
-// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
-func (ouo *OrderUpdateOne) AddProductItemIDs(ids ...uuid.UUID) *OrderUpdateOne {
-	ouo.mutation.AddProductItemIDs(ids...)
+// SetProductID sets the "product" edge to the ProductItem entity by ID.
+func (ouo *OrderUpdateOne) SetProductID(id uuid.UUID) *OrderUpdateOne {
+	ouo.mutation.SetProductID(id)
 	return ouo
 }
 
-// AddProductItems adds the "product_items" edges to the ProductItem entity.
-func (ouo *OrderUpdateOne) AddProductItems(p ...*ProductItem) *OrderUpdateOne {
-	ids := make([]uuid.UUID, len(p))
-	for i := range p {
-		ids[i] = p[i].ID
-	}
-	return ouo.AddProductItemIDs(ids...)
+// SetProduct sets the "product" edge to the ProductItem entity.
+func (ouo *OrderUpdateOne) SetProduct(p *ProductItem) *OrderUpdateOne {
+	return ouo.SetProductID(p.ID)
 }
 
 // SetUserID sets the "user" edge to the User entity by ID.
 func (ouo *OrderUpdateOne) SetUserID(id uuid.UUID) *OrderUpdateOne {
 	ouo.mutation.SetUserID(id)
-	return ouo
-}
-
-// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
-func (ouo *OrderUpdateOne) SetNillableUserID(id *uuid.UUID) *OrderUpdateOne {
-	if id != nil {
-		ouo = ouo.SetUserID(*id)
-	}
 	return ouo
 }
 
@@ -365,25 +397,10 @@ func (ouo *OrderUpdateOne) Mutation() *OrderMutation {
 	return ouo.mutation
 }
 
-// ClearProductItems clears all "product_items" edges to the ProductItem entity.
-func (ouo *OrderUpdateOne) ClearProductItems() *OrderUpdateOne {
-	ouo.mutation.ClearProductItems()
+// ClearProduct clears the "product" edge to the ProductItem entity.
+func (ouo *OrderUpdateOne) ClearProduct() *OrderUpdateOne {
+	ouo.mutation.ClearProduct()
 	return ouo
-}
-
-// RemoveProductItemIDs removes the "product_items" edge to ProductItem entities by IDs.
-func (ouo *OrderUpdateOne) RemoveProductItemIDs(ids ...uuid.UUID) *OrderUpdateOne {
-	ouo.mutation.RemoveProductItemIDs(ids...)
-	return ouo
-}
-
-// RemoveProductItems removes "product_items" edges to ProductItem entities.
-func (ouo *OrderUpdateOne) RemoveProductItems(p ...*ProductItem) *OrderUpdateOne {
-	ids := make([]uuid.UUID, len(p))
-	for i := range p {
-		ids[i] = p[i].ID
-	}
-	return ouo.RemoveProductItemIDs(ids...)
 }
 
 // ClearUser clears the "user" edge to the User entity.
@@ -443,12 +460,34 @@ func (ouo *OrderUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (ouo *OrderUpdateOne) check() error {
+	if v, ok := ouo.mutation.Amount(); ok {
+		if err := order.AmountValidator(v); err != nil {
+			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "Order.amount": %w`, err)}
+		}
+	}
+	if v, ok := ouo.mutation.UnitType(); ok {
+		if err := order.UnitTypeValidator(v); err != nil {
+			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "Order.unit_type": %w`, err)}
+		}
+	}
 	if v, ok := ouo.mutation.Status(); ok {
 		if err := order.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Order.status": %w`, err)}
 		}
 	}
+	if _, ok := ouo.mutation.ProductID(); ouo.mutation.ProductCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Order.product"`)
+	}
+	if _, ok := ouo.mutation.UserID(); ouo.mutation.UserCleared() && !ok {
+		return errors.New(`ent: clearing a required unique edge "Order.user"`)
+	}
 	return nil
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (ouo *OrderUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OrderUpdateOne {
+	ouo.modifiers = append(ouo.modifiers, modifiers...)
+	return ouo
 }
 
 func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error) {
@@ -480,6 +519,12 @@ func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error
 			}
 		}
 	}
+	if value, ok := ouo.mutation.Amount(); ok {
+		_spec.SetField(order.FieldAmount, field.TypeString, value)
+	}
+	if value, ok := ouo.mutation.UnitType(); ok {
+		_spec.SetField(order.FieldUnitType, field.TypeString, value)
+	}
 	if value, ok := ouo.mutation.Status(); ok {
 		_spec.SetField(order.FieldStatus, field.TypeEnum, value)
 	}
@@ -489,12 +534,12 @@ func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error
 	if value, ok := ouo.mutation.UpdatedAt(); ok {
 		_spec.SetField(order.FieldUpdatedAt, field.TypeTime, value)
 	}
-	if ouo.mutation.ProductItemsCleared() {
+	if ouo.mutation.ProductCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
-			Table:   order.ProductItemsTable,
-			Columns: []string{order.ProductItemsColumn},
+			Table:   order.ProductTable,
+			Columns: []string{order.ProductColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
@@ -502,28 +547,12 @@ func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := ouo.mutation.RemovedProductItemsIDs(); len(nodes) > 0 && !ouo.mutation.ProductItemsCleared() {
+	if nodes := ouo.mutation.ProductIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
-			Table:   order.ProductItemsTable,
-			Columns: []string{order.ProductItemsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := ouo.mutation.ProductItemsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   order.ProductItemsTable,
-			Columns: []string{order.ProductItemsColumn},
+			Table:   order.ProductTable,
+			Columns: []string{order.ProductColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
@@ -563,6 +592,7 @@ func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(ouo.modifiers...)
 	_node = &Order{config: ouo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

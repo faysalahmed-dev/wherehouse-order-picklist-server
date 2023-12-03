@@ -61,16 +61,6 @@ func Name(v string) predicate.ProductItem {
 	return predicate.ProductItem(sql.FieldEQ(FieldName, v))
 }
 
-// Amount applies equality check predicate on the "amount" field. It's identical to AmountEQ.
-func Amount(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldEQ(FieldAmount, v))
-}
-
-// UnitType applies equality check predicate on the "unit_type" field. It's identical to UnitTypeEQ.
-func UnitType(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldEQ(FieldUnitType, v))
-}
-
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.ProductItem {
 	return predicate.ProductItem(sql.FieldEQ(FieldCreatedAt, v))
@@ -144,136 +134,6 @@ func NameEqualFold(v string) predicate.ProductItem {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.ProductItem {
 	return predicate.ProductItem(sql.FieldContainsFold(FieldName, v))
-}
-
-// AmountEQ applies the EQ predicate on the "amount" field.
-func AmountEQ(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldEQ(FieldAmount, v))
-}
-
-// AmountNEQ applies the NEQ predicate on the "amount" field.
-func AmountNEQ(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldNEQ(FieldAmount, v))
-}
-
-// AmountIn applies the In predicate on the "amount" field.
-func AmountIn(vs ...string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldIn(FieldAmount, vs...))
-}
-
-// AmountNotIn applies the NotIn predicate on the "amount" field.
-func AmountNotIn(vs ...string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldNotIn(FieldAmount, vs...))
-}
-
-// AmountGT applies the GT predicate on the "amount" field.
-func AmountGT(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldGT(FieldAmount, v))
-}
-
-// AmountGTE applies the GTE predicate on the "amount" field.
-func AmountGTE(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldGTE(FieldAmount, v))
-}
-
-// AmountLT applies the LT predicate on the "amount" field.
-func AmountLT(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldLT(FieldAmount, v))
-}
-
-// AmountLTE applies the LTE predicate on the "amount" field.
-func AmountLTE(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldLTE(FieldAmount, v))
-}
-
-// AmountContains applies the Contains predicate on the "amount" field.
-func AmountContains(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldContains(FieldAmount, v))
-}
-
-// AmountHasPrefix applies the HasPrefix predicate on the "amount" field.
-func AmountHasPrefix(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldHasPrefix(FieldAmount, v))
-}
-
-// AmountHasSuffix applies the HasSuffix predicate on the "amount" field.
-func AmountHasSuffix(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldHasSuffix(FieldAmount, v))
-}
-
-// AmountEqualFold applies the EqualFold predicate on the "amount" field.
-func AmountEqualFold(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldEqualFold(FieldAmount, v))
-}
-
-// AmountContainsFold applies the ContainsFold predicate on the "amount" field.
-func AmountContainsFold(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldContainsFold(FieldAmount, v))
-}
-
-// UnitTypeEQ applies the EQ predicate on the "unit_type" field.
-func UnitTypeEQ(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldEQ(FieldUnitType, v))
-}
-
-// UnitTypeNEQ applies the NEQ predicate on the "unit_type" field.
-func UnitTypeNEQ(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldNEQ(FieldUnitType, v))
-}
-
-// UnitTypeIn applies the In predicate on the "unit_type" field.
-func UnitTypeIn(vs ...string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldIn(FieldUnitType, vs...))
-}
-
-// UnitTypeNotIn applies the NotIn predicate on the "unit_type" field.
-func UnitTypeNotIn(vs ...string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldNotIn(FieldUnitType, vs...))
-}
-
-// UnitTypeGT applies the GT predicate on the "unit_type" field.
-func UnitTypeGT(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldGT(FieldUnitType, v))
-}
-
-// UnitTypeGTE applies the GTE predicate on the "unit_type" field.
-func UnitTypeGTE(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldGTE(FieldUnitType, v))
-}
-
-// UnitTypeLT applies the LT predicate on the "unit_type" field.
-func UnitTypeLT(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldLT(FieldUnitType, v))
-}
-
-// UnitTypeLTE applies the LTE predicate on the "unit_type" field.
-func UnitTypeLTE(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldLTE(FieldUnitType, v))
-}
-
-// UnitTypeContains applies the Contains predicate on the "unit_type" field.
-func UnitTypeContains(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldContains(FieldUnitType, v))
-}
-
-// UnitTypeHasPrefix applies the HasPrefix predicate on the "unit_type" field.
-func UnitTypeHasPrefix(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldHasPrefix(FieldUnitType, v))
-}
-
-// UnitTypeHasSuffix applies the HasSuffix predicate on the "unit_type" field.
-func UnitTypeHasSuffix(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldHasSuffix(FieldUnitType, v))
-}
-
-// UnitTypeEqualFold applies the EqualFold predicate on the "unit_type" field.
-func UnitTypeEqualFold(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldEqualFold(FieldUnitType, v))
-}
-
-// UnitTypeContainsFold applies the ContainsFold predicate on the "unit_type" field.
-func UnitTypeContainsFold(v string) predicate.ProductItem {
-	return predicate.ProductItem(sql.FieldContainsFold(FieldUnitType, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
@@ -371,6 +231,29 @@ func HasSubCategories() predicate.ProductItem {
 func HasSubCategoriesWith(preds ...predicate.SubCategory) predicate.ProductItem {
 	return predicate.ProductItem(func(s *sql.Selector) {
 		step := newSubCategoriesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasOrder applies the HasEdge predicate on the "order" edge.
+func HasOrder() predicate.ProductItem {
+	return predicate.ProductItem(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, OrderTable, OrderColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasOrderWith applies the HasEdge predicate on the "order" edge with a given conditions (other predicates).
+func HasOrderWith(preds ...predicate.Order) predicate.ProductItem {
+	return predicate.ProductItem(func(s *sql.Selector) {
+		step := newOrderStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

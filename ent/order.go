@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
 	"github.com/google/uuid"
 )
@@ -19,6 +20,10 @@ type Order struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID uuid.UUID `json:"id"`
+	// Amount holds the value of the "amount" field.
+	Amount string `json:"amount"`
+	// UnitType holds the value of the "unit_type" field.
+	UnitType string `json:"unit_type"`
 	// Status holds the value of the "status" field.
 	Status order.Status `json:"status"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -34,8 +39,8 @@ type Order struct {
 
 // OrderEdges holds the relations/edges for other nodes in the graph.
 type OrderEdges struct {
-	// ProductItems holds the value of the product_items edge.
-	ProductItems []*ProductItem `json:"product_items,omitempty"`
+	// Product holds the value of the product edge.
+	Product *ProductItem `json:"product,omitempty"`
 	// User holds the value of the user edge.
 	User *User `json:"user,omitempty"`
 	// loadedTypes holds the information for reporting if a
@@ -43,13 +48,17 @@ type OrderEdges struct {
 	loadedTypes [2]bool
 }
 
-// ProductItemsOrErr returns the ProductItems value or an error if the edge
-// was not loaded in eager-loading.
-func (e OrderEdges) ProductItemsOrErr() ([]*ProductItem, error) {
+// ProductOrErr returns the Product value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e OrderEdges) ProductOrErr() (*ProductItem, error) {
 	if e.loadedTypes[0] {
-		return e.ProductItems, nil
+		if e.Product == nil {
+			// Edge was loaded but was not found.
+			return nil, &NotFoundError{label: productitem.Label}
+		}
+		return e.Product, nil
 	}
-	return nil, &NotLoadedError{edge: "product_items"}
+	return nil, &NotLoadedError{edge: "product"}
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -70,7 +79,7 @@ func (*Order) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case order.FieldStatus:
+		case order.FieldAmount, order.FieldUnitType, order.FieldStatus:
 			values[i] = new(sql.NullString)
 		case order.FieldCreatedAt, order.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -98,6 +107,18 @@ func (o *Order) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field id", values[i])
 			} else if value != nil {
 				o.ID = *value
+			}
+		case order.FieldAmount:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field amount", values[i])
+			} else if value.Valid {
+				o.Amount = value.String
+			}
+		case order.FieldUnitType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field unit_type", values[i])
+			} else if value.Valid {
+				o.UnitType = value.String
 			}
 		case order.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -137,9 +158,9 @@ func (o *Order) Value(name string) (ent.Value, error) {
 	return o.selectValues.Get(name)
 }
 
-// QueryProductItems queries the "product_items" edge of the Order entity.
-func (o *Order) QueryProductItems() *ProductItemQuery {
-	return NewOrderClient(o.config).QueryProductItems(o)
+// QueryProduct queries the "product" edge of the Order entity.
+func (o *Order) QueryProduct() *ProductItemQuery {
+	return NewOrderClient(o.config).QueryProduct(o)
 }
 
 // QueryUser queries the "user" edge of the Order entity.
@@ -170,6 +191,12 @@ func (o *Order) String() string {
 	var builder strings.Builder
 	builder.WriteString("Order(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", o.ID))
+	builder.WriteString("amount=")
+	builder.WriteString(o.Amount)
+	builder.WriteString(", ")
+	builder.WriteString("unit_type=")
+	builder.WriteString(o.UnitType)
+	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", o.Status))
 	builder.WriteString(", ")

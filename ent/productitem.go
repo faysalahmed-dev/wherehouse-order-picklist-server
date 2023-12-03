@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
@@ -22,10 +23,6 @@ type ProductItem struct {
 	ID uuid.UUID `json:"id"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name"`
-	// Amount holds the value of the "amount" field.
-	Amount string `json:"amount"`
-	// UnitType holds the value of the "unit_type" field.
-	UnitType string `json:"unit_type"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -33,7 +30,7 @@ type ProductItem struct {
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the ProductItemQuery when eager-loading is set.
 	Edges                      ProductItemEdges `json:"edges"`
-	order_product_items        *uuid.UUID
+	order_product              *uuid.UUID
 	sub_category_product_items *uuid.UUID
 	user_product_items         *uuid.UUID
 	selectValues               sql.SelectValues
@@ -43,11 +40,13 @@ type ProductItem struct {
 type ProductItemEdges struct {
 	// SubCategories holds the value of the sub_categories edge.
 	SubCategories *SubCategory `json:"sub_categories,omitempty"`
+	// Order holds the value of the order edge.
+	Order *Order `json:"order,omitempty"`
 	// User holds the value of the user edge.
 	User *User `json:"user,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // SubCategoriesOrErr returns the SubCategories value or an error if the edge
@@ -63,10 +62,23 @@ func (e ProductItemEdges) SubCategoriesOrErr() (*SubCategory, error) {
 	return nil, &NotLoadedError{edge: "sub_categories"}
 }
 
+// OrderOrErr returns the Order value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e ProductItemEdges) OrderOrErr() (*Order, error) {
+	if e.loadedTypes[1] {
+		if e.Order == nil {
+			// Edge was loaded but was not found.
+			return nil, &NotFoundError{label: order.Label}
+		}
+		return e.Order, nil
+	}
+	return nil, &NotLoadedError{edge: "order"}
+}
+
 // UserOrErr returns the User value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e ProductItemEdges) UserOrErr() (*User, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		if e.User == nil {
 			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: user.Label}
@@ -81,13 +93,13 @@ func (*ProductItem) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case productitem.FieldName, productitem.FieldAmount, productitem.FieldUnitType:
+		case productitem.FieldName:
 			values[i] = new(sql.NullString)
 		case productitem.FieldCreatedAt, productitem.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case productitem.FieldID:
 			values[i] = new(uuid.UUID)
-		case productitem.ForeignKeys[0]: // order_product_items
+		case productitem.ForeignKeys[0]: // order_product
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		case productitem.ForeignKeys[1]: // sub_category_product_items
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
@@ -120,18 +132,6 @@ func (pi *ProductItem) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				pi.Name = value.String
 			}
-		case productitem.FieldAmount:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field amount", values[i])
-			} else if value.Valid {
-				pi.Amount = value.String
-			}
-		case productitem.FieldUnitType:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field unit_type", values[i])
-			} else if value.Valid {
-				pi.UnitType = value.String
-			}
 		case productitem.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -146,10 +146,10 @@ func (pi *ProductItem) assignValues(columns []string, values []any) error {
 			}
 		case productitem.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field order_product_items", values[i])
+				return fmt.Errorf("unexpected type %T for field order_product", values[i])
 			} else if value.Valid {
-				pi.order_product_items = new(uuid.UUID)
-				*pi.order_product_items = *value.S.(*uuid.UUID)
+				pi.order_product = new(uuid.UUID)
+				*pi.order_product = *value.S.(*uuid.UUID)
 			}
 		case productitem.ForeignKeys[1]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
@@ -183,6 +183,11 @@ func (pi *ProductItem) QuerySubCategories() *SubCategoryQuery {
 	return NewProductItemClient(pi.config).QuerySubCategories(pi)
 }
 
+// QueryOrder queries the "order" edge of the ProductItem entity.
+func (pi *ProductItem) QueryOrder() *OrderQuery {
+	return NewProductItemClient(pi.config).QueryOrder(pi)
+}
+
 // QueryUser queries the "user" edge of the ProductItem entity.
 func (pi *ProductItem) QueryUser() *UserQuery {
 	return NewProductItemClient(pi.config).QueryUser(pi)
@@ -213,12 +218,6 @@ func (pi *ProductItem) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", pi.ID))
 	builder.WriteString("name=")
 	builder.WriteString(pi.Name)
-	builder.WriteString(", ")
-	builder.WriteString("amount=")
-	builder.WriteString(pi.Amount)
-	builder.WriteString(", ")
-	builder.WriteString("unit_type=")
-	builder.WriteString(pi.UnitType)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(pi.CreatedAt.Format(time.ANSIC))

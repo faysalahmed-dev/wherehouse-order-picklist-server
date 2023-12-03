@@ -17,16 +17,14 @@ const (
 	FieldID = "id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
-	// FieldAmount holds the string denoting the amount field in the database.
-	FieldAmount = "amount"
-	// FieldUnitType holds the string denoting the unit_type field in the database.
-	FieldUnitType = "unit_type"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeSubCategories holds the string denoting the sub_categories edge name in mutations.
 	EdgeSubCategories = "sub_categories"
+	// EdgeOrder holds the string denoting the order edge name in mutations.
+	EdgeOrder = "order"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// Table holds the table name of the productitem in the database.
@@ -38,6 +36,13 @@ const (
 	SubCategoriesInverseTable = "sub_categories"
 	// SubCategoriesColumn is the table column denoting the sub_categories relation/edge.
 	SubCategoriesColumn = "sub_category_product_items"
+	// OrderTable is the table that holds the order relation/edge.
+	OrderTable = "product_items"
+	// OrderInverseTable is the table name for the Order entity.
+	// It exists in this package in order to avoid circular dependency with the "order" package.
+	OrderInverseTable = "orders"
+	// OrderColumn is the table column denoting the order relation/edge.
+	OrderColumn = "order_product"
 	// UserTable is the table that holds the user relation/edge.
 	UserTable = "product_items"
 	// UserInverseTable is the table name for the User entity.
@@ -51,8 +56,6 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldName,
-	FieldAmount,
-	FieldUnitType,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -60,7 +63,7 @@ var Columns = []string{
 // ForeignKeys holds the SQL foreign-keys that are owned by the "product_items"
 // table and are not defined as standalone fields in the schema.
 var ForeignKeys = []string{
-	"order_product_items",
+	"order_product",
 	"sub_category_product_items",
 	"user_product_items",
 }
@@ -83,10 +86,6 @@ func ValidColumn(column string) bool {
 var (
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
-	// AmountValidator is a validator for the "amount" field. It is called by the builders before save.
-	AmountValidator func(string) error
-	// UnitTypeValidator is a validator for the "unit_type" field. It is called by the builders before save.
-	UnitTypeValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -110,16 +109,6 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
-// ByAmount orders the results by the amount field.
-func ByAmount(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAmount, opts...).ToFunc()
-}
-
-// ByUnitType orders the results by the unit_type field.
-func ByUnitType(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUnitType, opts...).ToFunc()
-}
-
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -137,6 +126,13 @@ func BySubCategoriesField(field string, opts ...sql.OrderTermOption) OrderOption
 	}
 }
 
+// ByOrderField orders the results by order field.
+func ByOrderField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newOrderStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByUserField orders the results by user field.
 func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -148,6 +144,13 @@ func newSubCategoriesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SubCategoriesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, SubCategoriesTable, SubCategoriesColumn),
+	)
+}
+func newOrderStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(OrderInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, true, OrderTable, OrderColumn),
 	)
 }
 func newUserStep() *sqlgraph.Step {

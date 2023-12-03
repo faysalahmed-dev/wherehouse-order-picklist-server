@@ -16,25 +16,29 @@ const (
 	Label = "order"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldAmount holds the string denoting the amount field in the database.
+	FieldAmount = "amount"
+	// FieldUnitType holds the string denoting the unit_type field in the database.
+	FieldUnitType = "unit_type"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// EdgeProductItems holds the string denoting the product_items edge name in mutations.
-	EdgeProductItems = "product_items"
+	// EdgeProduct holds the string denoting the product edge name in mutations.
+	EdgeProduct = "product"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// Table holds the table name of the order in the database.
 	Table = "orders"
-	// ProductItemsTable is the table that holds the product_items relation/edge.
-	ProductItemsTable = "product_items"
-	// ProductItemsInverseTable is the table name for the ProductItem entity.
+	// ProductTable is the table that holds the product relation/edge.
+	ProductTable = "product_items"
+	// ProductInverseTable is the table name for the ProductItem entity.
 	// It exists in this package in order to avoid circular dependency with the "productitem" package.
-	ProductItemsInverseTable = "product_items"
-	// ProductItemsColumn is the table column denoting the product_items relation/edge.
-	ProductItemsColumn = "order_product_items"
+	ProductInverseTable = "product_items"
+	// ProductColumn is the table column denoting the product relation/edge.
+	ProductColumn = "order_product"
 	// UserTable is the table that holds the user relation/edge.
 	UserTable = "orders"
 	// UserInverseTable is the table name for the User entity.
@@ -47,6 +51,8 @@ const (
 // Columns holds all SQL columns for order fields.
 var Columns = []string{
 	FieldID,
+	FieldAmount,
+	FieldUnitType,
 	FieldStatus,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -74,6 +80,10 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// AmountValidator is a validator for the "amount" field. It is called by the builders before save.
+	AmountValidator func(string) error
+	// UnitTypeValidator is a validator for the "unit_type" field. It is called by the builders before save.
+	UnitTypeValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -118,6 +128,16 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
 }
 
+// ByAmount orders the results by the amount field.
+func ByAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAmount, opts...).ToFunc()
+}
+
+// ByUnitType orders the results by the unit_type field.
+func ByUnitType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUnitType, opts...).ToFunc()
+}
+
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
@@ -133,17 +153,10 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
-// ByProductItemsCount orders the results by product_items count.
-func ByProductItemsCount(opts ...sql.OrderTermOption) OrderOption {
+// ByProductField orders the results by product field.
+func ByProductField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newProductItemsStep(), opts...)
-	}
-}
-
-// ByProductItems orders the results by product_items terms.
-func ByProductItems(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newProductItemsStep(), append([]sql.OrderTerm{term}, terms...)...)
+		sqlgraph.OrderByNeighborTerms(s, newProductStep(), sql.OrderByField(field, opts...))
 	}
 }
 
@@ -153,11 +166,11 @@ func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
 	}
 }
-func newProductItemsStep() *sqlgraph.Step {
+func newProductStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(ProductItemsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, ProductItemsTable, ProductItemsColumn),
+		sqlgraph.To(ProductInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, ProductTable, ProductColumn),
 	)
 }
 func newUserStep() *sqlgraph.Step {

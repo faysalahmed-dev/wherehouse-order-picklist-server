@@ -30,6 +30,7 @@ type SubCategoryQuery struct {
 	withCategory     *CategoryQuery
 	withUser         *UserQuery
 	withFKs          bool
+	modifiers        []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -466,6 +467,9 @@ func (scq *SubCategoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(scq.modifiers) > 0 {
+		_spec.Modifiers = scq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -595,6 +599,9 @@ func (scq *SubCategoryQuery) loadUser(ctx context.Context, query *UserQuery, nod
 
 func (scq *SubCategoryQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := scq.querySpec()
+	if len(scq.modifiers) > 0 {
+		_spec.Modifiers = scq.modifiers
+	}
 	_spec.Node.Columns = scq.ctx.Fields
 	if len(scq.ctx.Fields) > 0 {
 		_spec.Unique = scq.ctx.Unique != nil && *scq.ctx.Unique
@@ -657,6 +664,9 @@ func (scq *SubCategoryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if scq.ctx.Unique != nil && *scq.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range scq.modifiers {
+		m(selector)
+	}
 	for _, p := range scq.predicates {
 		p(selector)
 	}
@@ -672,6 +682,12 @@ func (scq *SubCategoryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (scq *SubCategoryQuery) Modify(modifiers ...func(s *sql.Selector)) *SubCategorySelect {
+	scq.modifiers = append(scq.modifiers, modifiers...)
+	return scq.Select()
 }
 
 // SubCategoryGroupBy is the group-by builder for SubCategory entities.
@@ -762,4 +778,10 @@ func (scs *SubCategorySelect) sqlScan(ctx context.Context, root *SubCategoryQuer
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (scs *SubCategorySelect) Modify(modifiers ...func(s *sql.Selector)) *SubCategorySelect {
+	scs.modifiers = append(scs.modifiers, modifiers...)
+	return scs
 }

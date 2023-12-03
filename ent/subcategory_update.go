@@ -22,8 +22,9 @@ import (
 // SubCategoryUpdate is the builder for updating SubCategory entities.
 type SubCategoryUpdate struct {
 	config
-	hooks    []Hook
-	mutation *SubCategoryMutation
+	hooks     []Hook
+	mutation  *SubCategoryMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the SubCategoryUpdate builder.
@@ -38,15 +39,39 @@ func (scu *SubCategoryUpdate) SetName(s string) *SubCategoryUpdate {
 	return scu
 }
 
+// SetNillableName sets the "name" field if the given value is not nil.
+func (scu *SubCategoryUpdate) SetNillableName(s *string) *SubCategoryUpdate {
+	if s != nil {
+		scu.SetName(*s)
+	}
+	return scu
+}
+
 // SetDescriptions sets the "descriptions" field.
 func (scu *SubCategoryUpdate) SetDescriptions(s string) *SubCategoryUpdate {
 	scu.mutation.SetDescriptions(s)
 	return scu
 }
 
+// SetNillableDescriptions sets the "descriptions" field if the given value is not nil.
+func (scu *SubCategoryUpdate) SetNillableDescriptions(s *string) *SubCategoryUpdate {
+	if s != nil {
+		scu.SetDescriptions(*s)
+	}
+	return scu
+}
+
 // SetValue sets the "value" field.
 func (scu *SubCategoryUpdate) SetValue(s string) *SubCategoryUpdate {
 	scu.mutation.SetValue(s)
+	return scu
+}
+
+// SetNillableValue sets the "value" field if the given value is not nil.
+func (scu *SubCategoryUpdate) SetNillableValue(s *string) *SubCategoryUpdate {
+	if s != nil {
+		scu.SetValue(*s)
+	}
 	return scu
 }
 
@@ -217,6 +242,12 @@ func (scu *SubCategoryUpdate) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (scu *SubCategoryUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *SubCategoryUpdate {
+	scu.modifiers = append(scu.modifiers, modifiers...)
+	return scu
+}
+
 func (scu *SubCategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if err := scu.check(); err != nil {
 		return n, err
@@ -347,6 +378,7 @@ func (scu *SubCategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(scu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, scu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{subcategory.Label}
@@ -362,14 +394,23 @@ func (scu *SubCategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // SubCategoryUpdateOne is the builder for updating a single SubCategory entity.
 type SubCategoryUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *SubCategoryMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *SubCategoryMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetName sets the "name" field.
 func (scuo *SubCategoryUpdateOne) SetName(s string) *SubCategoryUpdateOne {
 	scuo.mutation.SetName(s)
+	return scuo
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (scuo *SubCategoryUpdateOne) SetNillableName(s *string) *SubCategoryUpdateOne {
+	if s != nil {
+		scuo.SetName(*s)
+	}
 	return scuo
 }
 
@@ -379,9 +420,25 @@ func (scuo *SubCategoryUpdateOne) SetDescriptions(s string) *SubCategoryUpdateOn
 	return scuo
 }
 
+// SetNillableDescriptions sets the "descriptions" field if the given value is not nil.
+func (scuo *SubCategoryUpdateOne) SetNillableDescriptions(s *string) *SubCategoryUpdateOne {
+	if s != nil {
+		scuo.SetDescriptions(*s)
+	}
+	return scuo
+}
+
 // SetValue sets the "value" field.
 func (scuo *SubCategoryUpdateOne) SetValue(s string) *SubCategoryUpdateOne {
 	scuo.mutation.SetValue(s)
+	return scuo
+}
+
+// SetNillableValue sets the "value" field if the given value is not nil.
+func (scuo *SubCategoryUpdateOne) SetNillableValue(s *string) *SubCategoryUpdateOne {
+	if s != nil {
+		scuo.SetValue(*s)
+	}
 	return scuo
 }
 
@@ -565,6 +622,12 @@ func (scuo *SubCategoryUpdateOne) check() error {
 	return nil
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (scuo *SubCategoryUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *SubCategoryUpdateOne {
+	scuo.modifiers = append(scuo.modifiers, modifiers...)
+	return scuo
+}
+
 func (scuo *SubCategoryUpdateOne) sqlSave(ctx context.Context) (_node *SubCategory, err error) {
 	if err := scuo.check(); err != nil {
 		return _node, err
@@ -712,6 +775,7 @@ func (scuo *SubCategoryUpdateOne) sqlSave(ctx context.Context) (_node *SubCatego
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(scuo.modifiers...)
 	_node = &SubCategory{config: scuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

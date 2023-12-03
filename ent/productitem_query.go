@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/productitem"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
@@ -25,8 +26,10 @@ type ProductItemQuery struct {
 	inters            []Interceptor
 	predicates        []predicate.ProductItem
 	withSubCategories *SubCategoryQuery
+	withOrder         *OrderQuery
 	withUser          *UserQuery
 	withFKs           bool
+	modifiers         []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -78,6 +81,28 @@ func (piq *ProductItemQuery) QuerySubCategories() *SubCategoryQuery {
 			sqlgraph.From(productitem.Table, productitem.FieldID, selector),
 			sqlgraph.To(subcategory.Table, subcategory.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, productitem.SubCategoriesTable, productitem.SubCategoriesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(piq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOrder chains the current query on the "order" edge.
+func (piq *ProductItemQuery) QueryOrder() *OrderQuery {
+	query := (&OrderClient{config: piq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := piq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := piq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(productitem.Table, productitem.FieldID, selector),
+			sqlgraph.To(order.Table, order.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, productitem.OrderTable, productitem.OrderColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(piq.driver.Dialect(), step)
 		return fromU, nil
@@ -300,6 +325,7 @@ func (piq *ProductItemQuery) Clone() *ProductItemQuery {
 		inters:            append([]Interceptor{}, piq.inters...),
 		predicates:        append([]predicate.ProductItem{}, piq.predicates...),
 		withSubCategories: piq.withSubCategories.Clone(),
+		withOrder:         piq.withOrder.Clone(),
 		withUser:          piq.withUser.Clone(),
 		// clone intermediate query.
 		sql:  piq.sql.Clone(),
@@ -315,6 +341,17 @@ func (piq *ProductItemQuery) WithSubCategories(opts ...func(*SubCategoryQuery)) 
 		opt(query)
 	}
 	piq.withSubCategories = query
+	return piq
+}
+
+// WithOrder tells the query-builder to eager-load the nodes that are connected to
+// the "order" edge. The optional arguments are used to configure the query builder of the edge.
+func (piq *ProductItemQuery) WithOrder(opts ...func(*OrderQuery)) *ProductItemQuery {
+	query := (&OrderClient{config: piq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	piq.withOrder = query
 	return piq
 }
 
@@ -408,12 +445,13 @@ func (piq *ProductItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 		nodes       = []*ProductItem{}
 		withFKs     = piq.withFKs
 		_spec       = piq.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			piq.withSubCategories != nil,
+			piq.withOrder != nil,
 			piq.withUser != nil,
 		}
 	)
-	if piq.withSubCategories != nil || piq.withUser != nil {
+	if piq.withSubCategories != nil || piq.withOrder != nil || piq.withUser != nil {
 		withFKs = true
 	}
 	if withFKs {
@@ -428,6 +466,9 @@ func (piq *ProductItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(piq.modifiers) > 0 {
+		_spec.Modifiers = piq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -440,6 +481,12 @@ func (piq *ProductItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	if query := piq.withSubCategories; query != nil {
 		if err := piq.loadSubCategories(ctx, query, nodes, nil,
 			func(n *ProductItem, e *SubCategory) { n.Edges.SubCategories = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := piq.withOrder; query != nil {
+		if err := piq.loadOrder(ctx, query, nodes, nil,
+			func(n *ProductItem, e *Order) { n.Edges.Order = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -484,6 +531,38 @@ func (piq *ProductItemQuery) loadSubCategories(ctx context.Context, query *SubCa
 	}
 	return nil
 }
+func (piq *ProductItemQuery) loadOrder(ctx context.Context, query *OrderQuery, nodes []*ProductItem, init func(*ProductItem), assign func(*ProductItem, *Order)) error {
+	ids := make([]uuid.UUID, 0, len(nodes))
+	nodeids := make(map[uuid.UUID][]*ProductItem)
+	for i := range nodes {
+		if nodes[i].order_product == nil {
+			continue
+		}
+		fk := *nodes[i].order_product
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(order.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "order_product" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 func (piq *ProductItemQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*ProductItem, init func(*ProductItem), assign func(*ProductItem, *User)) error {
 	ids := make([]uuid.UUID, 0, len(nodes))
 	nodeids := make(map[uuid.UUID][]*ProductItem)
@@ -519,6 +598,9 @@ func (piq *ProductItemQuery) loadUser(ctx context.Context, query *UserQuery, nod
 
 func (piq *ProductItemQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := piq.querySpec()
+	if len(piq.modifiers) > 0 {
+		_spec.Modifiers = piq.modifiers
+	}
 	_spec.Node.Columns = piq.ctx.Fields
 	if len(piq.ctx.Fields) > 0 {
 		_spec.Unique = piq.ctx.Unique != nil && *piq.ctx.Unique
@@ -581,6 +663,9 @@ func (piq *ProductItemQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if piq.ctx.Unique != nil && *piq.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range piq.modifiers {
+		m(selector)
+	}
 	for _, p := range piq.predicates {
 		p(selector)
 	}
@@ -596,6 +681,12 @@ func (piq *ProductItemQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (piq *ProductItemQuery) Modify(modifiers ...func(s *sql.Selector)) *ProductItemSelect {
+	piq.modifiers = append(piq.modifiers, modifiers...)
+	return piq.Select()
 }
 
 // ProductItemGroupBy is the group-by builder for ProductItem entities.
@@ -686,4 +777,10 @@ func (pis *ProductItemSelect) sqlScan(ctx context.Context, root *ProductItemQuer
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (pis *ProductItemSelect) Modify(modifiers ...func(s *sql.Selector)) *ProductItemSelect {
+	pis.modifiers = append(pis.modifiers, modifiers...)
+	return pis
 }

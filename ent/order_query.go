@@ -21,13 +21,14 @@ import (
 // OrderQuery is the builder for querying Order entities.
 type OrderQuery struct {
 	config
-	ctx              *QueryContext
-	order            []order.OrderOption
-	inters           []Interceptor
-	predicates       []predicate.Order
-	withProductItems *ProductItemQuery
-	withUser         *UserQuery
-	withFKs          bool
+	ctx         *QueryContext
+	order       []order.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.Order
+	withProduct *ProductItemQuery
+	withUser    *UserQuery
+	withFKs     bool
+	modifiers   []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -64,8 +65,8 @@ func (oq *OrderQuery) Order(o ...order.OrderOption) *OrderQuery {
 	return oq
 }
 
-// QueryProductItems chains the current query on the "product_items" edge.
-func (oq *OrderQuery) QueryProductItems() *ProductItemQuery {
+// QueryProduct chains the current query on the "product" edge.
+func (oq *OrderQuery) QueryProduct() *ProductItemQuery {
 	query := (&ProductItemClient{config: oq.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := oq.prepareQuery(ctx); err != nil {
@@ -78,7 +79,7 @@ func (oq *OrderQuery) QueryProductItems() *ProductItemQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(order.Table, order.FieldID, selector),
 			sqlgraph.To(productitem.Table, productitem.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, order.ProductItemsTable, order.ProductItemsColumn),
+			sqlgraph.Edge(sqlgraph.O2O, false, order.ProductTable, order.ProductColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(oq.driver.Dialect(), step)
 		return fromU, nil
@@ -295,27 +296,27 @@ func (oq *OrderQuery) Clone() *OrderQuery {
 		return nil
 	}
 	return &OrderQuery{
-		config:           oq.config,
-		ctx:              oq.ctx.Clone(),
-		order:            append([]order.OrderOption{}, oq.order...),
-		inters:           append([]Interceptor{}, oq.inters...),
-		predicates:       append([]predicate.Order{}, oq.predicates...),
-		withProductItems: oq.withProductItems.Clone(),
-		withUser:         oq.withUser.Clone(),
+		config:      oq.config,
+		ctx:         oq.ctx.Clone(),
+		order:       append([]order.OrderOption{}, oq.order...),
+		inters:      append([]Interceptor{}, oq.inters...),
+		predicates:  append([]predicate.Order{}, oq.predicates...),
+		withProduct: oq.withProduct.Clone(),
+		withUser:    oq.withUser.Clone(),
 		// clone intermediate query.
 		sql:  oq.sql.Clone(),
 		path: oq.path,
 	}
 }
 
-// WithProductItems tells the query-builder to eager-load the nodes that are connected to
-// the "product_items" edge. The optional arguments are used to configure the query builder of the edge.
-func (oq *OrderQuery) WithProductItems(opts ...func(*ProductItemQuery)) *OrderQuery {
+// WithProduct tells the query-builder to eager-load the nodes that are connected to
+// the "product" edge. The optional arguments are used to configure the query builder of the edge.
+func (oq *OrderQuery) WithProduct(opts ...func(*ProductItemQuery)) *OrderQuery {
 	query := (&ProductItemClient{config: oq.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	oq.withProductItems = query
+	oq.withProduct = query
 	return oq
 }
 
@@ -336,12 +337,12 @@ func (oq *OrderQuery) WithUser(opts ...func(*UserQuery)) *OrderQuery {
 // Example:
 //
 //	var v []struct {
-//		Status order.Status `json:"status"`
+//		Amount string `json:"amount"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.Order.Query().
-//		GroupBy(order.FieldStatus).
+//		GroupBy(order.FieldAmount).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (oq *OrderQuery) GroupBy(field string, fields ...string) *OrderGroupBy {
@@ -359,11 +360,11 @@ func (oq *OrderQuery) GroupBy(field string, fields ...string) *OrderGroupBy {
 // Example:
 //
 //	var v []struct {
-//		Status order.Status `json:"status"`
+//		Amount string `json:"amount"`
 //	}
 //
 //	client.Order.Query().
-//		Select(order.FieldStatus).
+//		Select(order.FieldAmount).
 //		Scan(ctx, &v)
 func (oq *OrderQuery) Select(fields ...string) *OrderSelect {
 	oq.ctx.Fields = append(oq.ctx.Fields, fields...)
@@ -410,7 +411,7 @@ func (oq *OrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Order,
 		withFKs     = oq.withFKs
 		_spec       = oq.querySpec()
 		loadedTypes = [2]bool{
-			oq.withProductItems != nil,
+			oq.withProduct != nil,
 			oq.withUser != nil,
 		}
 	)
@@ -429,6 +430,9 @@ func (oq *OrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Order,
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(oq.modifiers) > 0 {
+		_spec.Modifiers = oq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -438,10 +442,9 @@ func (oq *OrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Order,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := oq.withProductItems; query != nil {
-		if err := oq.loadProductItems(ctx, query, nodes,
-			func(n *Order) { n.Edges.ProductItems = []*ProductItem{} },
-			func(n *Order, e *ProductItem) { n.Edges.ProductItems = append(n.Edges.ProductItems, e) }); err != nil {
+	if query := oq.withProduct; query != nil {
+		if err := oq.loadProduct(ctx, query, nodes, nil,
+			func(n *Order, e *ProductItem) { n.Edges.Product = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -454,32 +457,29 @@ func (oq *OrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Order,
 	return nodes, nil
 }
 
-func (oq *OrderQuery) loadProductItems(ctx context.Context, query *ProductItemQuery, nodes []*Order, init func(*Order), assign func(*Order, *ProductItem)) error {
+func (oq *OrderQuery) loadProduct(ctx context.Context, query *ProductItemQuery, nodes []*Order, init func(*Order), assign func(*Order, *ProductItem)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*Order)
 	for i := range nodes {
 		fks = append(fks, nodes[i].ID)
 		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
 	}
 	query.withFKs = true
 	query.Where(predicate.ProductItem(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(order.ProductItemsColumn), fks...))
+		s.Where(sql.InValues(s.C(order.ProductColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.order_product_items
+		fk := n.order_product
 		if fk == nil {
-			return fmt.Errorf(`foreign-key "order_product_items" is nil for node %v`, n.ID)
+			return fmt.Errorf(`foreign-key "order_product" is nil for node %v`, n.ID)
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "order_product_items" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "order_product" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -520,6 +520,9 @@ func (oq *OrderQuery) loadUser(ctx context.Context, query *UserQuery, nodes []*O
 
 func (oq *OrderQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := oq.querySpec()
+	if len(oq.modifiers) > 0 {
+		_spec.Modifiers = oq.modifiers
+	}
 	_spec.Node.Columns = oq.ctx.Fields
 	if len(oq.ctx.Fields) > 0 {
 		_spec.Unique = oq.ctx.Unique != nil && *oq.ctx.Unique
@@ -582,6 +585,9 @@ func (oq *OrderQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if oq.ctx.Unique != nil && *oq.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range oq.modifiers {
+		m(selector)
+	}
 	for _, p := range oq.predicates {
 		p(selector)
 	}
@@ -597,6 +603,12 @@ func (oq *OrderQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (oq *OrderQuery) Modify(modifiers ...func(s *sql.Selector)) *OrderSelect {
+	oq.modifiers = append(oq.modifiers, modifiers...)
+	return oq.Select()
 }
 
 // OrderGroupBy is the group-by builder for Order entities.
@@ -687,4 +699,10 @@ func (os *OrderSelect) sqlScan(ctx context.Context, root *OrderQuery, v any) err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (os *OrderSelect) Modify(modifiers ...func(s *sql.Selector)) *OrderSelect {
+	os.modifiers = append(os.modifiers, modifiers...)
+	return os
 }

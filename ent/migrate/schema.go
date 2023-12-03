@@ -34,10 +34,12 @@ var (
 	// OrdersColumns holds the columns for the "orders" table.
 	OrdersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "amount", Type: field.TypeString},
+		{Name: "unit_type", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"PICKED", "UNPICKED"}, Default: "UNPICKED"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "user_orders", Type: field.TypeUUID, Nullable: true},
+		{Name: "user_orders", Type: field.TypeUUID},
 	}
 	// OrdersTable holds the schema information for the "orders" table.
 	OrdersTable = &schema.Table{
@@ -47,7 +49,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "orders_users_orders",
-				Columns:    []*schema.Column{OrdersColumns[4]},
+				Columns:    []*schema.Column{OrdersColumns[6]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
@@ -57,11 +59,9 @@ var (
 	ProductItemsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
-		{Name: "amount", Type: field.TypeString},
-		{Name: "unit_type", Type: field.TypeString},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
-		{Name: "order_product_items", Type: field.TypeUUID, Nullable: true},
+		{Name: "order_product", Type: field.TypeUUID, Unique: true, Nullable: true},
 		{Name: "sub_category_product_items", Type: field.TypeUUID, Nullable: true},
 		{Name: "user_product_items", Type: field.TypeUUID, Nullable: true},
 	}
@@ -72,20 +72,20 @@ var (
 		PrimaryKey: []*schema.Column{ProductItemsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "product_items_orders_product_items",
-				Columns:    []*schema.Column{ProductItemsColumns[6]},
+				Symbol:     "product_items_orders_product",
+				Columns:    []*schema.Column{ProductItemsColumns[4]},
 				RefColumns: []*schema.Column{OrdersColumns[0]},
-				OnDelete:   schema.Cascade,
+				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "product_items_sub_categories_product_items",
-				Columns:    []*schema.Column{ProductItemsColumns[7]},
+				Columns:    []*schema.Column{ProductItemsColumns[5]},
 				RefColumns: []*schema.Column{SubCategoriesColumns[0]},
 				OnDelete:   schema.Cascade,
 			},
 			{
 				Symbol:     "product_items_users_product_items",
-				Columns:    []*schema.Column{ProductItemsColumns[8]},
+				Columns:    []*schema.Column{ProductItemsColumns[6]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.Cascade,
 			},

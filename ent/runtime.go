@@ -44,12 +44,20 @@ func init() {
 	category.DefaultID = categoryDescID.Default.(func() uuid.UUID)
 	orderFields := schema.Order{}.Fields()
 	_ = orderFields
+	// orderDescAmount is the schema descriptor for amount field.
+	orderDescAmount := orderFields[1].Descriptor()
+	// order.AmountValidator is a validator for the "amount" field. It is called by the builders before save.
+	order.AmountValidator = orderDescAmount.Validators[0].(func(string) error)
+	// orderDescUnitType is the schema descriptor for unit_type field.
+	orderDescUnitType := orderFields[2].Descriptor()
+	// order.UnitTypeValidator is a validator for the "unit_type" field. It is called by the builders before save.
+	order.UnitTypeValidator = orderDescUnitType.Validators[0].(func(string) error)
 	// orderDescCreatedAt is the schema descriptor for created_at field.
-	orderDescCreatedAt := orderFields[2].Descriptor()
+	orderDescCreatedAt := orderFields[4].Descriptor()
 	// order.DefaultCreatedAt holds the default value on creation for the created_at field.
 	order.DefaultCreatedAt = orderDescCreatedAt.Default.(func() time.Time)
 	// orderDescUpdatedAt is the schema descriptor for updated_at field.
-	orderDescUpdatedAt := orderFields[3].Descriptor()
+	orderDescUpdatedAt := orderFields[5].Descriptor()
 	// order.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	order.DefaultUpdatedAt = orderDescUpdatedAt.Default.(func() time.Time)
 	// order.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -64,20 +72,12 @@ func init() {
 	productitemDescName := productitemFields[1].Descriptor()
 	// productitem.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	productitem.NameValidator = productitemDescName.Validators[0].(func(string) error)
-	// productitemDescAmount is the schema descriptor for amount field.
-	productitemDescAmount := productitemFields[2].Descriptor()
-	// productitem.AmountValidator is a validator for the "amount" field. It is called by the builders before save.
-	productitem.AmountValidator = productitemDescAmount.Validators[0].(func(string) error)
-	// productitemDescUnitType is the schema descriptor for unit_type field.
-	productitemDescUnitType := productitemFields[3].Descriptor()
-	// productitem.UnitTypeValidator is a validator for the "unit_type" field. It is called by the builders before save.
-	productitem.UnitTypeValidator = productitemDescUnitType.Validators[0].(func(string) error)
 	// productitemDescCreatedAt is the schema descriptor for created_at field.
-	productitemDescCreatedAt := productitemFields[4].Descriptor()
+	productitemDescCreatedAt := productitemFields[2].Descriptor()
 	// productitem.DefaultCreatedAt holds the default value on creation for the created_at field.
 	productitem.DefaultCreatedAt = productitemDescCreatedAt.Default.(func() time.Time)
 	// productitemDescUpdatedAt is the schema descriptor for updated_at field.
-	productitemDescUpdatedAt := productitemFields[5].Descriptor()
+	productitemDescUpdatedAt := productitemFields[3].Descriptor()
 	// productitem.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	productitem.DefaultUpdatedAt = productitemDescUpdatedAt.Default.(func() time.Time)
 	// productitem.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

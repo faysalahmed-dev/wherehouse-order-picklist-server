@@ -56,6 +56,16 @@ func IDLTE(id uuid.UUID) predicate.Order {
 	return predicate.Order(sql.FieldLTE(FieldID, id))
 }
 
+// Amount applies equality check predicate on the "amount" field. It's identical to AmountEQ.
+func Amount(v string) predicate.Order {
+	return predicate.Order(sql.FieldEQ(FieldAmount, v))
+}
+
+// UnitType applies equality check predicate on the "unit_type" field. It's identical to UnitTypeEQ.
+func UnitType(v string) predicate.Order {
+	return predicate.Order(sql.FieldEQ(FieldUnitType, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Order {
 	return predicate.Order(sql.FieldEQ(FieldCreatedAt, v))
@@ -64,6 +74,136 @@ func CreatedAt(v time.Time) predicate.Order {
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.Order {
 	return predicate.Order(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// AmountEQ applies the EQ predicate on the "amount" field.
+func AmountEQ(v string) predicate.Order {
+	return predicate.Order(sql.FieldEQ(FieldAmount, v))
+}
+
+// AmountNEQ applies the NEQ predicate on the "amount" field.
+func AmountNEQ(v string) predicate.Order {
+	return predicate.Order(sql.FieldNEQ(FieldAmount, v))
+}
+
+// AmountIn applies the In predicate on the "amount" field.
+func AmountIn(vs ...string) predicate.Order {
+	return predicate.Order(sql.FieldIn(FieldAmount, vs...))
+}
+
+// AmountNotIn applies the NotIn predicate on the "amount" field.
+func AmountNotIn(vs ...string) predicate.Order {
+	return predicate.Order(sql.FieldNotIn(FieldAmount, vs...))
+}
+
+// AmountGT applies the GT predicate on the "amount" field.
+func AmountGT(v string) predicate.Order {
+	return predicate.Order(sql.FieldGT(FieldAmount, v))
+}
+
+// AmountGTE applies the GTE predicate on the "amount" field.
+func AmountGTE(v string) predicate.Order {
+	return predicate.Order(sql.FieldGTE(FieldAmount, v))
+}
+
+// AmountLT applies the LT predicate on the "amount" field.
+func AmountLT(v string) predicate.Order {
+	return predicate.Order(sql.FieldLT(FieldAmount, v))
+}
+
+// AmountLTE applies the LTE predicate on the "amount" field.
+func AmountLTE(v string) predicate.Order {
+	return predicate.Order(sql.FieldLTE(FieldAmount, v))
+}
+
+// AmountContains applies the Contains predicate on the "amount" field.
+func AmountContains(v string) predicate.Order {
+	return predicate.Order(sql.FieldContains(FieldAmount, v))
+}
+
+// AmountHasPrefix applies the HasPrefix predicate on the "amount" field.
+func AmountHasPrefix(v string) predicate.Order {
+	return predicate.Order(sql.FieldHasPrefix(FieldAmount, v))
+}
+
+// AmountHasSuffix applies the HasSuffix predicate on the "amount" field.
+func AmountHasSuffix(v string) predicate.Order {
+	return predicate.Order(sql.FieldHasSuffix(FieldAmount, v))
+}
+
+// AmountEqualFold applies the EqualFold predicate on the "amount" field.
+func AmountEqualFold(v string) predicate.Order {
+	return predicate.Order(sql.FieldEqualFold(FieldAmount, v))
+}
+
+// AmountContainsFold applies the ContainsFold predicate on the "amount" field.
+func AmountContainsFold(v string) predicate.Order {
+	return predicate.Order(sql.FieldContainsFold(FieldAmount, v))
+}
+
+// UnitTypeEQ applies the EQ predicate on the "unit_type" field.
+func UnitTypeEQ(v string) predicate.Order {
+	return predicate.Order(sql.FieldEQ(FieldUnitType, v))
+}
+
+// UnitTypeNEQ applies the NEQ predicate on the "unit_type" field.
+func UnitTypeNEQ(v string) predicate.Order {
+	return predicate.Order(sql.FieldNEQ(FieldUnitType, v))
+}
+
+// UnitTypeIn applies the In predicate on the "unit_type" field.
+func UnitTypeIn(vs ...string) predicate.Order {
+	return predicate.Order(sql.FieldIn(FieldUnitType, vs...))
+}
+
+// UnitTypeNotIn applies the NotIn predicate on the "unit_type" field.
+func UnitTypeNotIn(vs ...string) predicate.Order {
+	return predicate.Order(sql.FieldNotIn(FieldUnitType, vs...))
+}
+
+// UnitTypeGT applies the GT predicate on the "unit_type" field.
+func UnitTypeGT(v string) predicate.Order {
+	return predicate.Order(sql.FieldGT(FieldUnitType, v))
+}
+
+// UnitTypeGTE applies the GTE predicate on the "unit_type" field.
+func UnitTypeGTE(v string) predicate.Order {
+	return predicate.Order(sql.FieldGTE(FieldUnitType, v))
+}
+
+// UnitTypeLT applies the LT predicate on the "unit_type" field.
+func UnitTypeLT(v string) predicate.Order {
+	return predicate.Order(sql.FieldLT(FieldUnitType, v))
+}
+
+// UnitTypeLTE applies the LTE predicate on the "unit_type" field.
+func UnitTypeLTE(v string) predicate.Order {
+	return predicate.Order(sql.FieldLTE(FieldUnitType, v))
+}
+
+// UnitTypeContains applies the Contains predicate on the "unit_type" field.
+func UnitTypeContains(v string) predicate.Order {
+	return predicate.Order(sql.FieldContains(FieldUnitType, v))
+}
+
+// UnitTypeHasPrefix applies the HasPrefix predicate on the "unit_type" field.
+func UnitTypeHasPrefix(v string) predicate.Order {
+	return predicate.Order(sql.FieldHasPrefix(FieldUnitType, v))
+}
+
+// UnitTypeHasSuffix applies the HasSuffix predicate on the "unit_type" field.
+func UnitTypeHasSuffix(v string) predicate.Order {
+	return predicate.Order(sql.FieldHasSuffix(FieldUnitType, v))
+}
+
+// UnitTypeEqualFold applies the EqualFold predicate on the "unit_type" field.
+func UnitTypeEqualFold(v string) predicate.Order {
+	return predicate.Order(sql.FieldEqualFold(FieldUnitType, v))
+}
+
+// UnitTypeContainsFold applies the ContainsFold predicate on the "unit_type" field.
+func UnitTypeContainsFold(v string) predicate.Order {
+	return predicate.Order(sql.FieldContainsFold(FieldUnitType, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -166,21 +306,21 @@ func UpdatedAtLTE(v time.Time) predicate.Order {
 	return predicate.Order(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// HasProductItems applies the HasEdge predicate on the "product_items" edge.
-func HasProductItems() predicate.Order {
+// HasProduct applies the HasEdge predicate on the "product" edge.
+func HasProduct() predicate.Order {
 	return predicate.Order(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, ProductItemsTable, ProductItemsColumn),
+			sqlgraph.Edge(sqlgraph.O2O, false, ProductTable, ProductColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
 }
 
-// HasProductItemsWith applies the HasEdge predicate on the "product_items" edge with a given conditions (other predicates).
-func HasProductItemsWith(preds ...predicate.ProductItem) predicate.Order {
+// HasProductWith applies the HasEdge predicate on the "product" edge with a given conditions (other predicates).
+func HasProductWith(preds ...predicate.ProductItem) predicate.Order {
 	return predicate.Order(func(s *sql.Selector) {
-		step := newProductItemsStep()
+		step := newProductStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

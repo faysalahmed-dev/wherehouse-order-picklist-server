@@ -23,6 +23,18 @@ type OrderCreate struct {
 	hooks    []Hook
 }
 
+// SetAmount sets the "amount" field.
+func (oc *OrderCreate) SetAmount(s string) *OrderCreate {
+	oc.mutation.SetAmount(s)
+	return oc
+}
+
+// SetUnitType sets the "unit_type" field.
+func (oc *OrderCreate) SetUnitType(s string) *OrderCreate {
+	oc.mutation.SetUnitType(s)
+	return oc
+}
+
 // SetStatus sets the "status" field.
 func (oc *OrderCreate) SetStatus(o order.Status) *OrderCreate {
 	oc.mutation.SetStatus(o)
@@ -79,32 +91,20 @@ func (oc *OrderCreate) SetNillableID(u *uuid.UUID) *OrderCreate {
 	return oc
 }
 
-// AddProductItemIDs adds the "product_items" edge to the ProductItem entity by IDs.
-func (oc *OrderCreate) AddProductItemIDs(ids ...uuid.UUID) *OrderCreate {
-	oc.mutation.AddProductItemIDs(ids...)
+// SetProductID sets the "product" edge to the ProductItem entity by ID.
+func (oc *OrderCreate) SetProductID(id uuid.UUID) *OrderCreate {
+	oc.mutation.SetProductID(id)
 	return oc
 }
 
-// AddProductItems adds the "product_items" edges to the ProductItem entity.
-func (oc *OrderCreate) AddProductItems(p ...*ProductItem) *OrderCreate {
-	ids := make([]uuid.UUID, len(p))
-	for i := range p {
-		ids[i] = p[i].ID
-	}
-	return oc.AddProductItemIDs(ids...)
+// SetProduct sets the "product" edge to the ProductItem entity.
+func (oc *OrderCreate) SetProduct(p *ProductItem) *OrderCreate {
+	return oc.SetProductID(p.ID)
 }
 
 // SetUserID sets the "user" edge to the User entity by ID.
 func (oc *OrderCreate) SetUserID(id uuid.UUID) *OrderCreate {
 	oc.mutation.SetUserID(id)
-	return oc
-}
-
-// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
-func (oc *OrderCreate) SetNillableUserID(id *uuid.UUID) *OrderCreate {
-	if id != nil {
-		oc = oc.SetUserID(*id)
-	}
 	return oc
 }
 
@@ -168,6 +168,22 @@ func (oc *OrderCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (oc *OrderCreate) check() error {
+	if _, ok := oc.mutation.Amount(); !ok {
+		return &ValidationError{Name: "amount", err: errors.New(`ent: missing required field "Order.amount"`)}
+	}
+	if v, ok := oc.mutation.Amount(); ok {
+		if err := order.AmountValidator(v); err != nil {
+			return &ValidationError{Name: "amount", err: fmt.Errorf(`ent: validator failed for field "Order.amount": %w`, err)}
+		}
+	}
+	if _, ok := oc.mutation.UnitType(); !ok {
+		return &ValidationError{Name: "unit_type", err: errors.New(`ent: missing required field "Order.unit_type"`)}
+	}
+	if v, ok := oc.mutation.UnitType(); ok {
+		if err := order.UnitTypeValidator(v); err != nil {
+			return &ValidationError{Name: "unit_type", err: fmt.Errorf(`ent: validator failed for field "Order.unit_type": %w`, err)}
+		}
+	}
 	if _, ok := oc.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Order.status"`)}
 	}
@@ -181,6 +197,12 @@ func (oc *OrderCreate) check() error {
 	}
 	if _, ok := oc.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "Order.updated_at"`)}
+	}
+	if _, ok := oc.mutation.ProductID(); !ok {
+		return &ValidationError{Name: "product", err: errors.New(`ent: missing required edge "Order.product"`)}
+	}
+	if _, ok := oc.mutation.UserID(); !ok {
+		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "Order.user"`)}
 	}
 	return nil
 }
@@ -217,6 +239,14 @@ func (oc *OrderCreate) createSpec() (*Order, *sqlgraph.CreateSpec) {
 		_node.ID = id
 		_spec.ID.Value = &id
 	}
+	if value, ok := oc.mutation.Amount(); ok {
+		_spec.SetField(order.FieldAmount, field.TypeString, value)
+		_node.Amount = value
+	}
+	if value, ok := oc.mutation.UnitType(); ok {
+		_spec.SetField(order.FieldUnitType, field.TypeString, value)
+		_node.UnitType = value
+	}
 	if value, ok := oc.mutation.Status(); ok {
 		_spec.SetField(order.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
@@ -229,12 +259,12 @@ func (oc *OrderCreate) createSpec() (*Order, *sqlgraph.CreateSpec) {
 		_spec.SetField(order.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
-	if nodes := oc.mutation.ProductItemsIDs(); len(nodes) > 0 {
+	if nodes := oc.mutation.ProductIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
-			Table:   order.ProductItemsTable,
-			Columns: []string{order.ProductItemsColumn},
+			Table:   order.ProductTable,
+			Columns: []string{order.ProductColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(productitem.FieldID, field.TypeUUID),
