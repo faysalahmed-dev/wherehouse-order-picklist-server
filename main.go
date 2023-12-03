@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/handlers"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/routes"
 	"github.com/gofiber/fiber/v2"
@@ -19,6 +20,18 @@ import (
 
 func main() {
 	godotenv.Load()
+
+	var (
+		dbClient = db.ConnectToDB()
+		dbStore  = &db.Store{
+			User: store.NewUserStore(dbClient),
+		}
+	)
+
+	defer func() {
+		d, _ := dbClient.DB()
+		d.Close()
+	}()
 
 	app := fiber.New(fiber.Config{
 		StrictRouting: true,
@@ -41,13 +54,11 @@ func main() {
 		})
 	})
 	apiV1 := app.Group("/api/v1")
-	routes.RegisterUserRoutes(apiV1)
-	routes.RegisterCategoriesRoutes(apiV1)
-	routes.RegisterSubCategoriesRoutes(apiV1)
-	routes.RegisterOrdersRoutes(apiV1)
-
-	dbClient := db.ConnectToDB()
-	defer dbClient.Close()
+	routes.RegisterUserRoutes(apiV1, &dbStore.User)
+	// routes.RegisterCategoriesRoutes(apiV1)
+	// routes.RegisterSubCategoriesRoutes(apiV1)
+	// routes.RegisterOrdersRoutes(apiV1)
+	// routes.RegisterProductItemRoutes(apiV1)
 
 	runtimeOs := runtime.GOOS
 	port := os.Getenv("PORT")
