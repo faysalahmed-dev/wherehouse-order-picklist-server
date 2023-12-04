@@ -24,7 +24,8 @@ func main() {
 	var (
 		dbClient = db.ConnectToDB()
 		dbStore  = &db.Store{
-			User: store.NewUserStore(dbClient),
+			User:     store.NewUserStore(dbClient),
+			Category: store.NewCategoryStore(dbClient),
 		}
 	)
 
@@ -55,7 +56,7 @@ func main() {
 	})
 	apiV1 := app.Group("/api/v1")
 	routes.RegisterUserRoutes(apiV1, &dbStore.User)
-	// routes.RegisterCategoriesRoutes(apiV1)
+	routes.RegisterCategoriesRoutes(apiV1, &dbStore.Category, &dbStore.User)
 	// routes.RegisterSubCategoriesRoutes(apiV1)
 	// routes.RegisterOrdersRoutes(apiV1)
 	// routes.RegisterProductItemRoutes(apiV1)
