@@ -22,19 +22,17 @@ type CategoryStore interface {
 
 type DBCategoryStore struct {
 	client *gorm.DB
-	model  *gorm.DB
 }
 
 func NewCategoryStore(client *gorm.DB) *DBCategoryStore {
 	return &DBCategoryStore{
 		client: client,
-		model:  client.Model(schema.Category{}),
 	}
 }
 
 func (s *DBCategoryStore) Pagination(limit int) (int, error) {
 	var count int64
-	err := s.model.Count(&count).Error
+	err := s.client.Model(&schema.Category{}).Count(&count).Error
 	fmt.Println(err)
 	if err != nil {
 		return 0, errors.New("unable to count record")
@@ -44,7 +42,7 @@ func (s *DBCategoryStore) Pagination(limit int) (int, error) {
 func (s *DBCategoryStore) GetCategories(page int, limit int) (*[]schema.Category, error) {
 	var c []schema.Category
 	o := (page - 1) * limit
-	err := s.model.
+	err := s.client.Model(&schema.Category{}).
 		Select("id", "name", "value", "user", "user_id").
 		Limit(limit).
 		Offset(o).
@@ -62,7 +60,7 @@ func (s *DBCategoryStore) GetCategories(page int, limit int) (*[]schema.Category
 func (s *DBCategoryStore) GetCategoryOptions(page int, limit int) (*[]schema.Category, error) {
 	var c []schema.Category
 	o := (page - 1) * limit
-	err := s.model.
+	err := s.client.Model(&schema.Category{}).
 		Select("id", "name", "value").
 		Limit(limit).
 		Offset(o).
@@ -98,9 +96,7 @@ func (s *DBCategoryStore) GetByFields(c *schema.Category) (*schema.Category, err
 }
 
 func (s *DBCategoryStore) UpdateById(id string, c *schema.Category) (*schema.Category, error) {
-	fmt.Printf("%+v\n", c)
 	var result *schema.Category
-	// .Clauses(clause.Returning{})
 	r := s.client.Model(&schema.Category{}).Where("id = ?", id).Updates(c)
 
 	return result, r.Error
