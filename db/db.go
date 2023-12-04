@@ -15,8 +15,9 @@ import (
 var DBClient *gorm.DB
 
 type Store struct {
-	User     store.UserStore
-	Category store.CategoryStore
+	User        store.UserStore
+	Category    store.CategoryStore
+	SubCategory store.SubCategoryStore
 }
 
 func ConnectToDB() *gorm.DB {
@@ -33,6 +34,7 @@ func ConnectToDB() *gorm.DB {
 		log.Fatalf("failed opening connection to postgres: %v", err)
 	}
 	db.AutoMigrate(&schema.User{}, &schema.Category{})
+	db.AutoMigrate(&schema.SubCategory{})
 	DBClient = db
 	fmt.Println("database connected...")
 	return db
