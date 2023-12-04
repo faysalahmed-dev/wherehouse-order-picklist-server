@@ -17,6 +17,8 @@ type Category struct {
 
 	UserId string `gorm:"type:uuid;" json:"userId,omitempty"`
 	User   *User  `json:"user,omitempty"`
+
+	SubCategories []SubCategory `gorm:"foreignKey:CategoryId;constraint:OnDelete:CASCADE" json:"subCategories,omitempty"`
 }
 
 func (c *Category) BeforeCreate(tx *gorm.DB) error {
