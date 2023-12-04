@@ -18,7 +18,8 @@ type User struct {
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 
-	Categories []Category `gorm:"foreignKey:UserId;constraint:OnDelete:CASCADE" json:"categories,omitempty"`
+	Categories    []Category    `gorm:"foreignKey:UserId;constraint:OnDelete:CASCADE" json:"categories,omitempty"`
+	SubCategories []SubCategory `gorm:"foreignKey:UserId;constraint:OnDelete:CASCADE" json:"subCategories,omitempty"`
 }
 
 func (user *User) BeforeCreate(tx *gorm.DB) error {
