@@ -1,53 +1,65 @@
 package handlers
 
 import (
-	"math"
 	"strconv"
-	"strings"
 
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/schema"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
-func GetSubCategories(c *fiber.Ctx) error {
+type SubCategoryHandler struct {
+	subCategoryStore store.SubCategoryStore
+	categoryStore    store.CategoryStore
+}
+
+func NewSubCategoryHandler(s store.SubCategoryStore, cs store.CategoryStore) *SubCategoryHandler {
+	return &SubCategoryHandler{
+		subCategoryStore: s,
+		categoryStore:    cs,
+	}
+}
+
+func (h *SubCategoryHandler) GetSubCategories(c *fiber.Ctx) error {
 	categoryParam := c.Params("category", "")
+	if len(categoryParam) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "category required")
+	}
 	page, err := strconv.Atoi(c.Query("page", "1"))
 
 	if err != nil {
 		return fiber.NewError(400, "page num is invalid")
 	}
-	const limit = 15
-	filters := subcategory.HasCategoryWith(category.Value(categoryParam))
-	count, err := db.DBClient.SubCategory.Query().Where(filters).Count(c.Context())
+	const limit = 20
+	category, err := h.categoryStore.GetByFields(&schema.Category{Value: categoryParam})
 	if err != nil {
-		return fiber.NewError(500, "unable to count sub categories")
+		return fiber.NewError(400, "category not found")
 	}
-	total_pages := int(math.Ceil(float64(count) / limit))
-	if total_pages == 0 {
+	condition := &schema.SubCategory{CategoryId: category.ID}
+	tP, err := h.subCategoryStore.Pagination(limit, condition)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+	if tP == 0 {
 		return c.Status(200).JSON(fiber.Map{
 			"error":       false,
 			"data":        []interface{}{},
 			"limit":       limit,
-			"total_pages": total_pages,
+			"total_pages": tP,
 			"page":        page,
 		})
 	}
-	if page <= total_pages {
-		subcategories, err := db.DBClient.SubCategory.Query().Where(filters).WithUser().Limit(limit).Order(ent.Desc(subcategory.FieldCreatedAt)).Offset((page - 1) * limit).All(c.Context())
+	if tP <= page {
+		results, err := h.subCategoryStore.GetAll(page, limit, condition)
 		if err != nil {
 			return fiber.NewError(500, "unable to get sub categories")
 		}
 		return c.Status(200).JSON(fiber.Map{
 			"error":       false,
-			"data":        subcategories,
+			"data":        results,
 			"limit":       limit,
-			"total_pages": total_pages,
+			"total_pages": tP,
 			"page":        page,
 		})
 	} else {
@@ -55,49 +67,40 @@ func GetSubCategories(c *fiber.Ctx) error {
 	}
 }
 
-func GetSubCategoriesOptions(c *fiber.Ctx) error {
-	type C []struct {
-		ID    string `json:"id"`
-		Name  string `json:"name"`
-		Value string `json:"value"`
-	}
-	var Options C
-
+func (h *SubCategoryHandler) GetSubCategoriesOptions(c *fiber.Ctx) error {
 	categoryParam := c.Params("category", "")
+	if len(categoryParam) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "category required")
+	}
 
-	filters := subcategory.HasCategoryWith(category.Value(categoryParam))
-
-	err := db.DBClient.SubCategory.Query().Where(filters).Limit(50).Select(subcategory.FieldID, subcategory.FieldName, subcategory.FieldValue).Scan(c.Context(), &Options)
+	results, err := h.subCategoryStore.GetOptions(1, 50, &schema.SubCategory{Category: &schema.Category{Value: categoryParam}})
 	if err != nil {
 		return fiber.NewError(500, "unable to get options")
 	}
-	if len(Options) == 0 {
-		Options = make(C, 0)
-	}
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
-		"data":  Options,
+		"data":  results,
 	})
 }
 
-func CreateSubCategory(c *fiber.Ctx) error {
-	data := struct {
-		Name         string `json:"name"`
-		Descriptions string `json:"descriptions"`
-		CategorySlug string `json:"category_slug"`
-	}{}
+func (h *SubCategoryHandler) CreateSubCategory(c *fiber.Ctx) error {
+	u, _ := c.Locals("user").(*schema.User)
+	categoryParam := c.Params("category", "")
+	if len(categoryParam) == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "category required")
+	}
+	var data schema.CreateSubCategoryPayload
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
 
-	category, err := db.DBClient.Category.Query().Where(category.Value(data.CategorySlug)).First(c.Context())
+	category, err := h.categoryStore.GetByFields(&schema.Category{Value: categoryParam})
 	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, "category not found")
+		return fiber.NewError(fiber.StatusBadRequest, "category not found")
 	}
-	val := strings.ToLower(strings.Join(strings.Split(data.Name, " "), "-"))
-	u, _ := c.Locals("user").(*ent.User)
 
-	sub_category, err := db.DBClient.SubCategory.Create().SetName(data.Name).SetValue(val).SetDescriptions(data.Descriptions).SetCategoryID(category.ID).SetUserID(u.ID).Save(c.Context())
+	sub_category, err := h.subCategoryStore.InsertOne(schema.CreateSubCategoryParams(data, u.ID, category.ID))
+
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create sub category")
 	}
@@ -107,65 +110,53 @@ func CreateSubCategory(c *fiber.Ctx) error {
 	})
 }
 
-func UpdateSubCategory(c *fiber.Ctx) error {
-	id := c.Params("id")
-	u, _ := c.Locals("user").(*ent.User)
-	data := struct {
-		Name         string `json:"name",omitempty`
-		Descriptions string `json:"descriptions",omitempty`
-	}{}
+func (h *SubCategoryHandler) UpdateSubCategory(c *fiber.Ctx) error {
+	u, _ := c.Locals("user").(*schema.User)
+	id, err := uuid.Parse(c.Params("id", ""))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid id")
+	}
+	var data schema.CreateSubCategoryPayload
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
-	var filter predicate.SubCategory
+
+	var condition *schema.SubCategory
+
 	if u.Type == "ADMIN" {
-		filter = subcategory.ID(uuid.MustParse(id))
+		condition = &schema.SubCategory{ID: id.String()}
 	} else {
-		filter = subcategory.And(subcategory.HasUserWith(user.ID(u.ID)), subcategory.ID(uuid.MustParse(id)))
+		condition = &schema.SubCategory{ID: id.String(), UserId: u.ID}
 	}
-	hasItem, err := db.DBClient.SubCategory.Query().Where(filter).First(c.Context())
+	result, err := h.subCategoryStore.UpdateOne(condition, schema.UpdateSubCategoryParams(data))
 	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, "item not found")
-	}
-	var name, descriptions, value string
-	if len(data.Name) == 0 {
-		name = hasItem.Name
-		value = hasItem.Value
-	} else {
-		name = data.Name
-		value = strings.ToLower(strings.Join(strings.Split(data.Name, " "), "-"))
-	}
-	if len(data.Descriptions) == 0 {
-		descriptions = hasItem.Descriptions
-	} else {
-		descriptions = data.Descriptions
+		return fiber.NewError(fiber.StatusNotFound, "record not found")
 	}
 
-	sub_category, err := db.DBClient.SubCategory.UpdateOneID(hasItem.ID).SetName(name).SetValue(value).SetDescriptions(descriptions).Save(c.Context())
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "unable to update sub category")
-	}
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
-		"data":  sub_category,
+		"data":  result,
 	})
 }
 
-func DeleteSubCategory(c *fiber.Ctx) error {
-	id := c.Params("id")
-	u, _ := c.Locals("user").(*ent.User)
-	var filter predicate.SubCategory
-	if u.Type == "ADMIN" {
-		filter = subcategory.ID(uuid.MustParse(id))
-	} else {
-		filter = subcategory.And(subcategory.HasUserWith(user.ID(u.ID)), subcategory.ID(uuid.MustParse(id)))
+func (h *SubCategoryHandler) DeleteSubCategory(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id", ""))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid id")
 	}
-	if err := db.DBClient.SubCategory.DeleteOneID(uuid.MustParse(id)).Where(filter).Exec(c.Context()); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "subcategory not found")
+	u, _ := c.Locals("user").(*schema.User)
+
+	if u.Type == "ADMIN" {
+		err = h.subCategoryStore.DeleteById(id.String())
+	} else {
+		err = h.subCategoryStore.DeleteByUserAndId(u.ID, id.String())
+	}
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "record not found")
 	}
 	return c.Status(200).JSON(fiber.Map{
 		"error":   false,
 		"message": "successfully deleted",
-		"data":    "null",
+		"data":    nil,
 	})
 }
