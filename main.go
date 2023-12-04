@@ -27,6 +27,7 @@ func main() {
 			User:        store.NewUserStore(dbClient),
 			Category:    store.NewCategoryStore(dbClient),
 			SubCategory: store.NewSubCategoryStore(dbClient),
+			Product:     store.NewProductStore(dbClient),
 		}
 	)
 
@@ -60,7 +61,7 @@ func main() {
 	routes.RegisterCategoriesRoutes(apiV1, dbStore)
 	routes.RegisterSubCategoriesRoutes(apiV1, dbStore)
 	// routes.RegisterOrdersRoutes(apiV1)
-	// routes.RegisterProductItemRoutes(apiV1)
+	routes.RegisterProductItemRoutes(apiV1, dbStore)
 
 	runtimeOs := runtime.GOOS
 	port := os.Getenv("PORT")

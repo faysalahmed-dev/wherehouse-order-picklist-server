@@ -18,6 +18,7 @@ type Store struct {
 	User        store.UserStore
 	Category    store.CategoryStore
 	SubCategory store.SubCategoryStore
+	Product     store.ProductStore
 }
 
 func ConnectToDB() *gorm.DB {
@@ -33,8 +34,10 @@ func ConnectToDB() *gorm.DB {
 	if err != nil {
 		log.Fatalf("failed opening connection to postgres: %v", err)
 	}
-	db.AutoMigrate(&schema.User{}, &schema.Category{})
+	db.AutoMigrate(&schema.User{})
+	db.AutoMigrate(&schema.Category{})
 	db.AutoMigrate(&schema.SubCategory{})
+	db.AutoMigrate(&schema.Product{})
 	DBClient = db
 	fmt.Println("database connected...")
 	return db
