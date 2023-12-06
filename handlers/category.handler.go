@@ -40,7 +40,6 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 	}
 	if tP <= page {
 		results, err := h.categoryStore.GetCategories(page, limit)
-		fmt.Println(err)
 		if err != nil {
 			return fiber.NewError(500, "unable to get categories")
 		}
@@ -73,8 +72,11 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
-
-	category, err := h.categoryStore.InsertCategory(schema.CreateCategoryParams(data, u.ID))
+	d := schema.CreateCategoryParams(data, u.ID)
+	if _, err := h.categoryStore.GetByFields(&schema.Category{Value: d.Value}); err == nil {
+		return fiber.NewError(fiber.StatusConflict, "record already exist")
+	}
+	category, err := h.categoryStore.InsertCategory(d)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create category")
 	}
