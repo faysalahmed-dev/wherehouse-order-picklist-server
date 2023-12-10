@@ -19,6 +19,7 @@ type Store struct {
 	Category    store.CategoryStore
 	SubCategory store.SubCategoryStore
 	Product     store.ProductStore
+	Order       store.OrderStore
 }
 
 func ConnectToDB() *gorm.DB {
@@ -38,6 +39,7 @@ func ConnectToDB() *gorm.DB {
 	db.AutoMigrate(&schema.Category{})
 	db.AutoMigrate(&schema.SubCategory{})
 	db.AutoMigrate(&schema.Product{})
+	db.AutoMigrate(&schema.Order{})
 	DBClient = db
 	fmt.Println("database connected...")
 	return db
