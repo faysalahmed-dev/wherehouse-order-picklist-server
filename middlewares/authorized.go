@@ -46,9 +46,9 @@ func (h *AuthMiddleware) Authorized(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusUnauthorized, "user not found")
 	}
-	// if user.Blocked {
-	// 	return fiber.NewError(fiber.StatusForbidden, "account blocked")
-	// }
+	if user.Blocked == 1 {
+		return fiber.NewError(fiber.StatusForbidden, "account blocked")
+	}
 	c.Locals("user", user)
 
 	return c.Next()

@@ -15,6 +15,7 @@ type User struct {
 	Email     string     `gorm:"unique" json:"email,omitempty"`
 	Password  string     `json:"-"`
 	Type      string     `json:"type,omitempty"`
+	Blocked   int        `json:"blocked" gorm:"default:0"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 
