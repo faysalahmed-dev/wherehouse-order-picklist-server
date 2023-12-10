@@ -17,7 +17,7 @@ func RegisterUserRoutes(r fiber.Router, s *db.Store) {
 	userRoute.Use(authM.Authorized)
 	userRoute.Get("/profile", h.Profile)
 	userRoute.Use(authM.AdminOnly)
-	// userRoute.Get("/users", handlers.GetAllUser)
-	// userRoute.Get("/search-users", handlers.SearchUserByName)
-	// userRoute.Group("/:id").Patch("", handlers.UpdateUserStatus).Delete("", handlers.DeleteUser)
+	userRoute.Get("/user-info/:userId", h.GetUserById)
+	userRoute.Get("/users", h.GetAllUser)
+	userRoute.Group("/:id").Patch("/update-status", h.UpdateUserStatus).Delete("", h.DeleteUser)
 }

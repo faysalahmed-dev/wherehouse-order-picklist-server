@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"strconv"
+
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/schema"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/helpers"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type UserHandler struct {
@@ -61,9 +64,9 @@ func (h *UserHandler) LoginUser(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusForbidden, "user not found")
 	}
-	// if user.Blocked {
-	// 	return fiber.NewError(fiber.StatusForbidden, "account blocked")
-	// }
+	if user.Blocked == 1 {
+		return fiber.NewError(fiber.StatusForbidden, "account blocked")
+	}
 
 	if !helpers.CheckPasswordHash(userParams.Password, user.Password) {
 		return fiber.NewError(fiber.StatusForbidden, "password not match")
@@ -94,126 +97,94 @@ func (h *UserHandler) Profile(c *fiber.Ctx) error {
 	return fiber.NewError(fiber.StatusInternalServerError, "unable to find user")
 }
 
-// func GetAllUser(c *fiber.Ctx) error {
-// 	ctx := c.Context()
-// 	const limit = 15
-// 	status_type := c.Query("status_type") // "all" || "blocked" || "unblocked"
-// 	page, err := strconv.Atoi(c.Query("page", "1"))
-// 	if err != nil {
-// 		return fiber.NewError(400, "invalid page number")
-// 	}
-// 	filters := user.TypeEQ("USER")
-// 	if status_type == "blocked" {
-// 		filters = user.And(filters, user.Blocked(true))
-// 	} else if status_type == "unblocked" {
-// 		filters = user.And(filters, user.Blocked(false))
-// 	}
+func (h *UserHandler) GetUserById(c *fiber.Ctx) error {
+	uId, err := uuid.Parse(c.Params("userId", ""))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid user id")
+	}
+	u, err := h.userStore.GetUserById(uId.String())
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "user not found")
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"error": false,
+		"data":  u,
+	})
+}
 
-// 	count, err := db.DBClient.User.Query().Where(filters).Count(ctx)
-// 	if err != nil {
-// 		return fiber.NewError(fiber.StatusInternalServerError, "unable to count")
-// 	}
-// 	total_pages := int(math.Ceil(float64(count) / limit))
-// 	if total_pages == 0 {
-// 		return c.Status(200).JSON(fiber.Map{
-// 			"error":       false,
-// 			"data":        []interface{}{},
-// 			"limit":       limit,
-// 			"total_pages": total_pages,
-// 			"page":        page,
-// 			"total_items": count,
-// 		})
-// 	}
-// 	if page <= total_pages {
-// 		users, err := db.DBClient.
-// 			User.
-// 			Query().
-// 			Where(filters).
-// 			Limit(limit).
-// 			Order(ent.Desc(user.FieldCreatedAt)).
-// 			Offset((page - 1) * limit).
-// 			All(ctx)
-// 		if err != nil {
-// 			return fiber.NewError(500, "unable to get users")
-// 		}
-// 		return c.Status(200).JSON(fiber.Map{
-// 			"error":       false,
-// 			"data":        users,
-// 			"limit":       limit,
-// 			"total_pages": total_pages,
-// 			"page":        page,
-// 			"total_items": count,
-// 		})
-// 	} else {
-// 		return fiber.NewError(404, "page limit exit")
-// 	}
-// }
+func (h *UserHandler) GetAllUser(c *fiber.Ctx) error {
+	status_type := c.Query("status_type") // "all" || "blocked"
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil {
+		return fiber.NewError(400, "invalid page number")
+	}
+	var filters *schema.User
+	if status_type == "blocked" {
+		filters = &schema.User{Blocked: 1, Type: "USER"}
+	} else {
+		filters = &schema.User{Blocked: 0, Type: "USER"}
+	}
 
-// func SearchUserByName(c *fiber.Ctx) error {
-// 	ctx := c.Context()
-// 	status_type := c.Query("status_type") // "all" || "blocked" || "unblocked"
-// 	name := c.Query("name")
-// 	if len(name) == 0 {
-// 		return fiber.NewError(400, "name query can not be empty")
-// 	}
-// 	filters := user.TypeEQ("USER")
-// 	if status_type == "blocked" {
-// 		filters = user.And(filters, user.Blocked(true))
-// 	} else if status_type == "unblocked" {
-// 		filters = user.And(filters, user.Blocked(false))
-// 	}
-// 	users, err := db.DBClient.
-// 		User.
-// 		Query().
-// 		Where(filters).
-// 		Where(user.NameContains(name)).
-// 		Limit(5).
-// 		Order(ent.Desc(user.FieldCreatedAt)).
-// 		All(ctx)
-// 	if err != nil {
-// 		return fiber.NewError(500, "unable to get users")
-// 	}
-// 	return c.Status(200).JSON(fiber.Map{
-// 		"error": false,
-// 		"data":  users,
-// 	})
-// }
+	const limit = 20
+	opt := store.PaginationOpt{Limit: limit, Page: page}
+	pOpt, err := h.userStore.Pagination(filters, opt)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	}
+	users, err := h.userStore.GetAll(filters, opt)
+	if pOpt.TotalPages == 0 {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, []interface{}{})
+	}
+	if pOpt.PageNum <= page {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, users)
+	} else {
+		return fiber.NewError(404, "page limit exit")
+	}
+}
 
-// func DeleteUser(c *fiber.Ctx) error {
-// 	id := c.Params("id")
-// 	if err := db.DBClient.User.DeleteOneID(uuid.MustParse(id)).Exec(c.Context()); err != nil {
-// 		return fiber.NewError(fiber.StatusBadRequest, "user not found")
-// 	}
-// 	return c.Status(200).JSON(fiber.Map{
-// 		"error":   false,
-// 		"message": "successfully deleted",
-// 		"data":    "null",
-// 	})
-// }
+func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid user id")
+	}
+	user, err := h.userStore.GetUserById(id.String())
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "user not found")
+	}
+	if user.Type == "ADMIN" {
+		return fiber.NewError(fiber.StatusForbidden, "admin account can't be deleted")
+	}
+	if err := h.userStore.DeleteById(id.String()); err != nil {
+		return fiber.NewError(fiber.StatusForbidden, "unable to delete user")
+	}
+	return c.Status(200).JSON(fiber.Map{
+		"error":   false,
+		"message": "successfully deleted",
+		"data":    nil,
+	})
+}
 
-// func UpdateUserStatus(c *fiber.Ctx) error {
-// 	id := c.Params("id")
-
-// 	fmt.Println(string(c.Body()))
-// 	data := struct {
-// 		Status bool `json:"status"`
-// 	}{}
-// 	if err := c.BodyParser(&data); err != nil {
-// 		return fiber.NewError(fiber.StatusBadRequest, "invalid payload")
-// 	}
-// 	user, err := db.DBClient.User.Query().Where(user.ID(uuid.MustParse(id))).First(c.Context())
-// 	if err != nil {
-// 		return fiber.NewError(fiber.StatusNotFound, "user not found")
-// 	}
-// 	if user.Type.String() == "ADMIN" {
-// 		return fiber.NewError(fiber.StatusForbidden, "admin account can't be blocked")
-// 	}
-// 	if _, err := db.DBClient.User.UpdateOneID(user.ID).SetBlocked(data.Status).Save(c.Context()); err != nil {
-// 		fmt.Println(err)
-// 		return fiber.NewError(fiber.StatusInternalServerError, "unable to update status")
-// 	}
-// 	return c.Status(200).JSON(fiber.Map{
-// 		"error":   false,
-// 		"message": "successfully updated the status",
-// 	})
-// }
+func (h *UserHandler) UpdateUserStatus(c *fiber.Ctx) error {
+	id := c.Params("id")
+	data := struct {
+		Blocked int `json:"blocked"`
+	}{}
+	if err := c.BodyParser(&data); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid payload")
+	}
+	user, err := h.userStore.GetUserById(id)
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "user not found")
+	}
+	if user.Type == "ADMIN" {
+		return fiber.NewError(fiber.StatusForbidden, "admin account can't be blocked")
+	}
+	_, err = h.userStore.UpdateById(user.ID, map[string]interface{}{"blocked": data.Blocked})
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "unable to update status")
+	}
+	return c.Status(200).JSON(fiber.Map{
+		"error":   false,
+		"message": "successfully updated the status",
+	})
+}
