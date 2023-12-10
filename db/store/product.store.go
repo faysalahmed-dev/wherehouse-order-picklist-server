@@ -9,9 +9,9 @@ import (
 )
 
 type ProductStore interface {
-	Pagination(limit int, condition *schema.Product) (pageNum int, err error)
-	GetAll(page int, limit int, condition *schema.Product) (*[]schema.Product, error)
-	GetOptions(page int, limit int, condition *schema.Product) (*[]schema.Product, error)
+	Pagination(condition *schema.Product, opt PaginationOpt) (*PaginationValue, error)
+	GetAll(condition *schema.Product, opt PaginationOpt, userId string) (*[]schema.Product, error)
+	GetOptions(condition *schema.Product, opt PaginationOpt) (*[]schema.Product, error)
 	InsertOne(c *schema.Product) (*schema.Product, error)
 	DeleteById(id string) error
 	DeleteByUserAndId(userId string, id string) error
@@ -29,29 +29,32 @@ func NewProductStore(client *gorm.DB) *DBProductStore {
 	}
 }
 
-func (s *DBProductStore) Pagination(limit int, condition *schema.Product) (int, error) {
+func (s *DBProductStore) Pagination(condition *schema.Product, opt PaginationOpt) (*PaginationValue, error) {
 	var count int64
-	err := s.client.Model(&schema.Product{}).Where(condition).Count(&count).Error
+	err := s.client.Model(&schema.Product{}).Where(&condition).Count(&count).Error
 	if err != nil {
-		return 0, errors.New("unable to count record")
+		return nil, errors.New("unable to count record")
 	}
-	return int(math.Ceil(float64(count) / float64(limit))), nil
+	return &PaginationValue{PageNum: opt.Page, TotalItems: int(count), TotalPages: int(math.Ceil(float64(count) / float64(opt.Limit)))}, nil
 }
 
-func (s *DBProductStore) GetAll(page int, limit int, condition *schema.Product) (*[]schema.Product, error) {
+func (s *DBProductStore) GetAll(condition *schema.Product, opt PaginationOpt, userId string) (*[]schema.Product, error) {
 	var c []schema.Product
-	o := (page - 1) * limit
+	o := (opt.Page - 1) * opt.Limit
 	err := s.client.Model(&schema.Product{}).
 		Where(condition).
-		Select("id", "name", "value", "description", "user_id", "sub_category_id").
-		Limit(limit).
+		Select("id", "name", "user_id", "sub_category_id").
+		Limit(opt.Limit).
 		Offset(o).
 		Order("created_at desc").
 		Preload("User", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name")
+			return db.Select("id", "name", "type")
 		}).
 		Preload("SubCategory", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "name", "value")
+		}).
+		Preload("Orders", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "amount", "unit_type", "product_id").Where("user_id = ?", userId)
 		}).
 		Find(&c).Error
 	if err != nil {
@@ -60,13 +63,13 @@ func (s *DBProductStore) GetAll(page int, limit int, condition *schema.Product) 
 	return &c, nil
 }
 
-func (s *DBProductStore) GetOptions(page int, limit int, condition *schema.Product) (*[]schema.Product, error) {
+func (s *DBProductStore) GetOptions(condition *schema.Product, opt PaginationOpt) (*[]schema.Product, error) {
 	var c []schema.Product
-	o := (page - 1) * limit
+	o := (opt.Page - 1) * opt.Limit
 	err := s.client.Model(&schema.Product{}).
 		Where(condition).
 		Select("id", "name", "value").
-		Limit(limit).
+		Limit(opt.Limit).
 		Offset(o).
 		Order("created_at desc").
 		Find(&c).Error
@@ -85,11 +88,19 @@ func (s *DBProductStore) InsertOne(c *schema.Product) (*schema.Product, error) {
 }
 
 func (s *DBProductStore) DeleteById(id string) error {
-	return s.client.Unscoped().Delete(&schema.Product{}, id).Error
+	count := s.client.Where("id = ?", id).Unscoped().Delete(&schema.Product{}).RowsAffected
+	if count == 0 {
+		return errors.New("item not found")
+	}
+	return nil
 }
 
 func (s *DBProductStore) DeleteByUserAndId(userId string, id string) error {
-	return s.client.Where("user_id = ? AND id = ?", userId, id).Unscoped().Delete(&schema.Product{}).Error
+	count := s.client.Where("user_id = ? AND id = ?", userId, id).Unscoped().Delete(&schema.Product{}).RowsAffected
+	if count == 0 {
+		return errors.New("item not found")
+	}
+	return nil
 }
 
 func (s *DBProductStore) GetByFields(c *schema.Product) (*schema.Product, error) {
@@ -99,8 +110,10 @@ func (s *DBProductStore) GetByFields(c *schema.Product) (*schema.Product, error)
 }
 
 func (s *DBProductStore) UpdateOne(condition *schema.Product, data *schema.Product) (*schema.Product, error) {
-	var result *schema.Product
-	r := s.client.Model(&schema.Product{}).Where(&condition).Updates(data)
-
-	return result, r.Error
+	var result schema.Product
+	r := s.client.Model(&schema.Product{}).Where(&condition).Updates(data).Scan(&result)
+	if r.RowsAffected == 0 {
+		return nil, errors.New("record not found")
+	}
+	return &result, nil
 }

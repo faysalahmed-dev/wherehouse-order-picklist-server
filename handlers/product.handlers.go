@@ -6,6 +6,7 @@ import (
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/schema"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/helpers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -23,7 +24,7 @@ func NewProductHandler(s db.Store) *ProductHandler {
 }
 
 func (h *ProductHandler) GetProductItems(c *fiber.Ctx) error {
-	// u, _ := c.Locals("user").(*schema.User)
+	u := c.Locals("user").(*schema.User)
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil {
 		return fiber.NewError(400, "page num is invalid")
@@ -33,37 +34,26 @@ func (h *ProductHandler) GetProductItems(c *fiber.Ctx) error {
 		return fiber.NewError(400, "sub category required")
 	}
 	subCat, err := h.subCategoryStore.GetByFields(&schema.SubCategory{Value: subcategorySlug})
-	if len(subcategorySlug) == 0 {
+	if err != nil {
 		return fiber.NewError(400, "sub category not found")
 	}
 	const limit = 30
 
 	condition := &schema.Product{SubCategoryId: subCat.ID}
-	tP, err := h.productStore.Pagination(limit, condition)
+	pOpt := store.PaginationOpt{Limit: limit, Page: page}
+	pV, err := h.productStore.Pagination(condition, pOpt)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
-	if tP == 0 {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"error":       false,
-			"data":        []interface{}{},
-			"limit":       limit,
-			"total_pages": tP,
-			"page":        page,
-		})
+	if pV.PageNum == 0 {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pV, Limit: limit}, []interface{}{})
 	}
-	if tP <= page {
-		results, err := h.productStore.GetAll(page, limit, condition)
+	if pV.PageNum <= page {
+		results, err := h.productStore.GetAll(condition, pOpt, u.ID)
 		if err != nil {
 			return fiber.NewError(500, "unable to get products")
 		}
-		return c.Status(200).JSON(fiber.Map{
-			"error":       false,
-			"data":        results,
-			"limit":       limit,
-			"total_pages": tP,
-			"page":        page,
-		})
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pV, Limit: limit}, results)
 	} else {
 		return fiber.NewError(404, "page limit exit")
 	}
