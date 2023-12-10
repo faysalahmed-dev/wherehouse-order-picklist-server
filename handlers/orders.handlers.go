@@ -2,303 +2,239 @@ package handlers
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/category"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/order"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/predicate"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/subcategory"
-	"github.com/faysalahmed-dev/wherehouse-order-picklist/ent/user"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/schema"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/helpers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
-func GetOrders(c *fiber.Ctx) error {
-	u, _ := c.Locals("user").(*ent.User)
-	page, err := strconv.Atoi(c.Query("page", "1"))
-	qC := c.Query("category")
-	qSubC := c.Query("sub_category")
+type OrderHandler struct {
+	orderStore   store.OrderStore
+	productStore store.ProductStore
+}
 
+func NewOrderHandler(s db.Store) *OrderHandler {
+	return &OrderHandler{
+		orderStore:   s.Order,
+		productStore: s.Product,
+	}
+}
+
+func (h *OrderHandler) GetOrdersByUser(c *fiber.Ctx) error {
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil {
+		return fiber.NewError(400, "invalid page")
+	}
+	userId := c.Query("userId", "")
+	if len(userId) > 0 {
+		_, err := uuid.Parse(userId)
+		if err != nil {
+			return fiber.NewError(400, "invalid user id")
+		}
+	}
+	const limit = 20
+	opt := store.PaginationOpt{
+		Page:  page,
+		Limit: limit,
+	}
+	pOpt, err := h.orderStore.Pagination(&schema.Order{UserId: userId}, opt)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+	if pOpt.TotalPages == 0 {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, []interface{}{})
+	}
+	if pOpt.PageNum <= page {
+		results, err := h.orderStore.GroupOrderByUser(userId, opt)
+		if err != nil {
+			return fiber.NewError(500, "unable to get get orders")
+		}
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, results)
+	} else {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
+}
+
+func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
+	userId, err := uuid.Parse(c.Params("userId", ""))
+	if err != nil {
+		return fiber.NewError(400, "invalid user id")
+	}
+	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil {
 		return fiber.NewError(400, "page num is invalid")
 	}
-	const limit = 15
-	var filters predicate.Order
-	if u.Type == "ADMIN" {
-		filters = order.NameNEQ("")
-	} else {
-		filters = order.HasUserWith(user.ID(u.ID))
+	const limit = 20
+	opt := store.PaginationOpt{
+		Page:  page,
+		Limit: limit,
 	}
-	if len(qC) > 0 {
-		filters = order.And(filters, order.HasSubCategoriesWith(subcategory.HasCategoryWith(category.ValueContains(qC))))
-	}
-	if len(qSubC) > 0 {
-		filters = order.And(filters, order.HasSubCategoriesWith(subcategory.ValueContains(qSubC)))
-	}
-	count, err := db.DBClient.Order.Query().Where(filters).Count(c.Context())
+	pOpt, err := h.orderStore.Pagination(&schema.Order{UserId: userId.String()}, opt)
 	if err != nil {
-		return fiber.NewError(500, "unable to count orders")
+		return fiber.NewError(500, err.Error())
 	}
-
-	total_pages := int(math.Ceil(float64(count) / limit))
-	if total_pages == 0 {
-		return c.Status(200).JSON(fiber.Map{
-			"error":       false,
-			"data":        []interface{}{},
-			"limit":       limit,
-			"total_pages": total_pages,
-			"page":        page,
-		})
+	if pOpt.TotalPages == 0 {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, []interface{}{})
 	}
-
-	if page <= total_pages {
-		orders, err := db.DBClient.Order.Query().
-			Limit(limit).
-			Where(filters).
-			WithSubCategories(func(scq *ent.SubCategoryQuery) {
-				// var v struct {
-				// 	ID           string `json:"id"`
-				// 	Name         string `json:"name"`
-				// 	Descriptions string `json:"descriptions"`
-				// 	Value        string `json:"value"`
-				// }
-				scq.Select(subcategory.FieldID, subcategory.FieldName, subcategory.FieldDescriptions, subcategory.FieldValue)
-				scq.WithCategory().Select(category.FieldID, category.FieldName, category.FieldValue)
-			}).
-			WithUser(func(uq *ent.UserQuery) {
-				uq.Select(user.FieldName, user.FieldType, user.FieldID)
-			}).
-			Order(ent.Desc(order.FieldCreatedAt)).
-			Offset((page - 1) * limit).
-			All(c.Context())
-
+	if pOpt.TotalPages <= page {
+		results, err := h.orderStore.OrdersByUserId(userId.String(), opt)
 		if err != nil {
 			return fiber.NewError(500, "unable to get orders")
 		}
-		return c.Status(200).JSON(fiber.Map{
-			"error":       false,
-			"data":        orders,
-			"limit":       limit,
-			"total_pages": total_pages,
-			"total_items": count,
-			"page":        page,
-		})
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, results)
+
 	} else {
-		return fiber.NewError(404, "page limit exit")
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 	}
 }
 
-func GetPickList(c *fiber.Ctx) error {
-	status := c.Query("status")
+func (h *OrderHandler) MyOrders(c *fiber.Ctx) error {
+	u, _ := c.Locals("user").(*schema.User)
 	page, err := strconv.Atoi(c.Query("page", "1"))
-	qC := c.Query("category")
-	qSubC := c.Query("sub_category")
 	if err != nil {
 		return fiber.NewError(400, "page num is invalid")
 	}
-	if status == order.StatusPICKED.String() || status == order.StatusUNPICKED.String() {
-		const limit = 15
-		var filters predicate.Order
-
-		filters = order.StatusEQ(order.Status(status))
-		if len(qC) > 0 {
-			filters = order.And(filters, order.HasSubCategoriesWith(subcategory.HasCategoryWith(category.ValueContains(qC))))
-		}
-		if len(qSubC) > 0 {
-			filters = order.And(filters, order.HasSubCategoriesWith(subcategory.ValueContains(qSubC)))
-		}
-		count, err := db.DBClient.Order.Query().Where(filters).Count(c.Context())
-		if err != nil {
-			return fiber.NewError(500, "unable to count orders")
-		}
-
-		total_pages := int(math.Ceil(float64(count) / limit))
-		if total_pages == 0 {
-			return c.Status(200).JSON(fiber.Map{
-				"error":       false,
-				"data":        []interface{}{},
-				"limit":       limit,
-				"total_pages": total_pages,
-				"page":        page,
-			})
-		}
-
-		if page <= total_pages {
-			orders, err := db.DBClient.Order.Query().
-				Limit(limit).
-				Where(filters).
-				WithSubCategories(func(scq *ent.SubCategoryQuery) {
-					// var v struct {
-					// 	ID           string `json:"id"`
-					// 	Name         string `json:"name"`
-					// 	Descriptions string `json:"descriptions"`
-					// 	Value        string `json:"value"`
-					// }
-					scq.Select(subcategory.FieldID, subcategory.FieldName, subcategory.FieldDescriptions, subcategory.FieldValue)
-					scq.WithCategory().Select(category.FieldID, category.FieldName, category.FieldValue)
-				}).
-				WithUser(func(uq *ent.UserQuery) {
-					uq.Select(user.FieldName, user.FieldType, user.FieldID)
-				}).
-				Order(ent.Desc(order.FieldCreatedAt)).
-				Offset((page - 1) * limit).
-				All(c.Context())
-
-			if err != nil {
-				return fiber.NewError(500, "unable to get orders")
-			}
-			return c.Status(200).JSON(fiber.Map{
-				"error":       false,
-				"data":        orders,
-				"limit":       limit,
-				"total_pages": total_pages,
-				"total_items": count,
-				"page":        page,
-			})
-		} else {
-			return fiber.NewError(404, "page limit exit")
-		}
+	const limit = 20
+	opt := store.PaginationOpt{
+		Page:  page,
+		Limit: limit,
 	}
-	return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("status must be %v or %v", order.StatusPICKED.String(), order.StatusUNPICKED.String()))
+	pOpt, err := h.orderStore.Pagination(&schema.Order{UserId: u.ID}, opt)
+	if err != nil {
+		return fiber.NewError(500, err.Error())
+	}
+	if pOpt.PageNum == 0 {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, []interface{}{})
+	}
+	if pOpt.PageNum <= page {
+		results, err := h.orderStore.OrdersByUserId(u.ID, opt)
+		if err != nil {
+			return fiber.NewError(500, "unable to get categories")
+		}
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pOpt, Limit: limit}, results)
+	} else {
+		return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+	}
 }
 
-func GetOrdersOptions(c *fiber.Ctx) error {
-	sub_category := c.Params("sub_category")
-	type O []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	}
-	var Options O
-	err := db.DBClient.Order.Query().
-		Limit(50).
-		Where(order.HasSubCategoriesWith(subcategory.Value(sub_category))).
-		Select(order.FieldID, order.FieldName).
-		Scan(c.Context(), &Options)
-
+func (h *OrderHandler) UserOptions(c *fiber.Ctx) error {
+	results, err := h.orderStore.HasOrderUsers(store.PaginationOpt{
+		Page:  1,
+		Limit: 50,
+	})
 	if err != nil {
 		return fiber.NewError(500, "unable to get options")
 	}
-	if len(Options) == 0 {
-		Options = make(O, 0)
-	}
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
-		"data":  Options,
+		"data":  results,
 	})
 }
 
-func AddOrders(c *fiber.Ctx) error {
-	u, _ := c.Locals("user").(*ent.User)
-
-	data := struct {
-		Name        string `json:"name"`
-		Amount      string `json:"amount"`
-		UnitType    string `json:"unit_type"`
-		SubCategory string `json:"sub_category"`
-	}{}
+func (h *OrderHandler) AddOrder(c *fiber.Ctx) error {
+	u, _ := c.Locals("user").(*schema.User)
+	pId, err := uuid.Parse(c.Params("productId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid product id")
+	}
+	p, err := h.productStore.GetByFields(&schema.Product{ID: pId.String()})
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "product not found")
+	}
+	if h.orderStore.HasOrder(p.ID, u.ID) {
+		return fiber.NewError(fiber.StatusBadRequest, "order already exists")
+	}
+	var data schema.CreateOrderPayload
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
-	subCategory, err := db.DBClient.SubCategory.Query().Where(subcategory.Value(data.SubCategory)).First(c.Context())
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "sub category not found")
-	}
-	orderItems, err := db.DBClient.Order.Create().SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).SetSubCategoriesID(subCategory.ID).SetUserID(u.ID).Save(c.Context())
+	newO, err := h.orderStore.InsertOne(schema.CreateOrderParams(data, u.ID, p.ID))
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create order")
 	}
-	db.DBClient.User.UpdateOneID(u.ID).SetTotalOrders(u.TotalOrders + 1).Save(c.Context())
 	return c.Status(201).JSON(fiber.Map{
 		"error": false,
-		"data":  orderItems,
+		"data":  newO,
 	})
 }
 
-func UpdateOrder(c *fiber.Ctx) error {
-	u, _ := c.Locals("user").(*ent.User)
-	orderid := c.Params("id")
-	data := struct {
-		Name     string `json:"name"`
-		Amount   string `json:"amount"`
-		UnitType string `json:"unit_type"`
-	}{}
+func (h *OrderHandler) UpdateOrder(c *fiber.Ctx) error {
+	u, _ := c.Locals("user").(*schema.User)
+	oId, err := uuid.Parse(c.Params("orderId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid params id")
+	}
+
+	var data *schema.CreateOrderPayload
+
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
-	var filter predicate.Order
-
+	var result *schema.Order
 	if u.Type == "ADMIN" {
-		filter = order.ID(uuid.MustParse(orderid))
+		result, err = h.orderStore.UpdateByFields(&schema.Order{ID: oId.String()}, &schema.Order{Amount: data.Amount, UnitType: data.UnitType})
 	} else {
-		filter = order.And(order.ID(uuid.MustParse(orderid)), order.HasUserWith(user.ID(u.ID)))
+		result, err = h.orderStore.UpdateByFields(&schema.Order{ID: oId.String(), UserId: u.ID}, &schema.Order{Amount: data.Amount, UnitType: data.UnitType})
 	}
-	o, err := db.DBClient.Order.Query().Where(filter).First(c.Context())
+	fmt.Println(err)
 	if err != nil {
 		return fiber.NewError(fiber.StatusNotFound, "order not found")
 	}
-	orderItem, err := db.DBClient.Order.Update().Where(order.ID(o.ID)).SetName(data.Name).SetAmount(data.Amount).SetUnitType(data.UnitType).Save(c.Context())
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "unable to update order")
-	}
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
-		"data":  orderItem,
+		"data":  result,
 	})
 }
 
-func AddToPickList(c *fiber.Ctx) error {
-	orderid := c.Params("id")
+func (h *OrderHandler) UpdateStatus(c *fiber.Ctx) error {
+	oId, err := uuid.Parse(c.Params("orderId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid params id")
+	}
+
 	data := struct {
-		Status int `json:"status"`
+		Status string `json:"status"`
 	}{}
 
 	if err := c.BodyParser(&data); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "unable to parse body data")
 	}
 
-	var status order.Status
-	if data.Status == 1 {
-		status = order.StatusPICKED
-	} else {
-		status = order.StatusUNPICKED
-	}
+	result, err := h.orderStore.UpdateByFields(&schema.Order{ID: oId.String()}, &schema.Order{
+		Status: data.Status,
+	})
 
-	orderItem, err := db.DBClient.Order.Update().Where(order.ID(uuid.MustParse(orderid))).SetStatus(status).Save(c.Context())
 	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "unable to update status")
+		return fiber.NewError(fiber.StatusNotFound, "order not found")
 	}
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
-		"data":  orderItem,
+		"data":  result,
 	})
 }
 
-func DeleteOrder(c *fiber.Ctx) error {
-	u, _ := c.Locals("user").(*ent.User)
-	orderid := c.Params("id")
-
-	var filter predicate.Order
-
-	if u.Type == "ADMIN" {
-		filter = order.ID(uuid.MustParse(orderid))
-	} else {
-		filter = order.And(order.ID(uuid.MustParse(orderid)), order.HasUserWith(user.ID(u.ID)))
+func (h *OrderHandler) DeleteOrder(c *fiber.Ctx) error {
+	u, _ := c.Locals("user").(*schema.User)
+	oid, err := uuid.Parse(c.Params("orderId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid order id")
 	}
 
-	orderItem, err := db.DBClient.Order.Query().Where(filter).First(c.Context())
+	if u.Type == "ADMIN" {
+		err = h.orderStore.DeleteByFields(&schema.Order{ID: oid.String()})
+	} else {
+		err = h.orderStore.DeleteByFields(&schema.Order{ID: oid.String(), UserId: u.ID})
+	}
+
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "order not found")
 	}
-	_, err = db.DBClient.Order.Delete().Where(order.ID(orderItem.ID)).Exec(c.Context())
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "unable to delete order")
-	}
-	db.DBClient.User.UpdateOneID(orderItem.Edges.User.ID).SetTotalOrders(u.TotalOrders + 1).Save(c.Context())
 	return c.Status(200).JSON(fiber.Map{
 		"error": false,
-		"data":  orderItem,
+		"data":  nil,
 	})
 }
