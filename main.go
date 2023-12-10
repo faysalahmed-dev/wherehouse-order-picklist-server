@@ -28,6 +28,7 @@ func main() {
 			Category:    store.NewCategoryStore(dbClient),
 			SubCategory: store.NewSubCategoryStore(dbClient),
 			Product:     store.NewProductStore(dbClient),
+			Order:       store.NewOrderStore(dbClient),
 		}
 	)
 
@@ -50,18 +51,22 @@ func main() {
 	app.Use(recover.New())
 	// app.Get("/stats", monitor.New())
 
+	apiV1 := app.Group("/api/v1")
+	routes.RegisterUserRoutes(apiV1, dbStore)
+	routes.RegisterCategoriesRoutes(apiV1, dbStore)
+	routes.RegisterSubCategoriesRoutes(apiV1, dbStore)
+	routes.RegisterOrdersRoutes(apiV1, dbStore)
+	routes.RegisterProductItemRoutes(apiV1, dbStore)
+
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Status(200).JSON(fiber.Map{
 			"error":   false,
 			"message": "warehouse api",
 		})
 	})
-	apiV1 := app.Group("/api/v1")
-	routes.RegisterUserRoutes(apiV1, dbStore)
-	routes.RegisterCategoriesRoutes(apiV1, dbStore)
-	routes.RegisterSubCategoriesRoutes(apiV1, dbStore)
-	// routes.RegisterOrdersRoutes(apiV1)
-	routes.RegisterProductItemRoutes(apiV1, dbStore)
+	app.Get("/all-routes", func(c *fiber.Ctx) error {
+		return c.JSON(app.Stack())
+	})
 
 	runtimeOs := runtime.GOOS
 	port := os.Getenv("PORT")
