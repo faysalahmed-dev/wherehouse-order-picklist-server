@@ -6,6 +6,7 @@ import (
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/schema"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/helpers"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -25,38 +26,29 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 		return fiber.NewError(400, "page num is invalid")
 	}
 	const limit = 20
-	tP, err := h.categoryStore.Pagination(limit)
+	pOpt := store.PaginationOpt{Limit: limit, Page: page}
+	pageInfo, err := h.categoryStore.Pagination(&schema.Category{}, pOpt)
+	fmt.Println(pageInfo)
 	if err != nil {
 		return fiber.NewError(500, err.Error())
 	}
-	if tP == 0 {
-		return c.Status(200).JSON(fiber.Map{
-			"error":       false,
-			"data":        []interface{}{},
-			"limit":       limit,
-			"total_pages": tP,
-			"page":        page,
-		})
+	if pageInfo.TotalPages == 0 {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pageInfo, Limit: limit}, []interface{}{})
 	}
-	if tP <= page {
-		results, err := h.categoryStore.GetCategories(page, limit)
+	if pageInfo.TotalPages <= page {
+		results, err := h.categoryStore.GetCategories(pOpt)
 		if err != nil {
 			return fiber.NewError(500, "unable to get categories")
 		}
-		return c.Status(200).JSON(fiber.Map{
-			"error":       false,
-			"data":        results,
-			"limit":       limit,
-			"total_pages": tP,
-			"page":        page,
-		})
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *pageInfo, Limit: limit}, results)
 	} else {
 		return fiber.NewError(404, "page limit exit")
 	}
 }
 
 func (h *CategoryHandler) GetCategoriesOptions(c *fiber.Ctx) error {
-	results, err := h.categoryStore.GetCategoryOptions(1, 50)
+	pOpt := store.PaginationOpt{Limit: 50, Page: 1}
+	results, err := h.categoryStore.GetCategoryOptions(pOpt)
 	if err != nil {
 		return fiber.NewError(500, "unable to get options")
 	}

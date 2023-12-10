@@ -9,9 +9,9 @@ import (
 )
 
 type CategoryStore interface {
-	Pagination(limit int) (pageNum int, err error)
-	GetCategories(page int, limit int) (*[]schema.Category, error)
-	GetCategoryOptions(page int, limit int) (*[]schema.Category, error)
+	Pagination(c *schema.Category, opt PaginationOpt) (*PaginationValue, error)
+	GetCategories(opt PaginationOpt) (*[]schema.Category, error)
+	GetCategoryOptions(opt PaginationOpt) (*[]schema.Category, error)
 	InsertCategory(c *schema.Category) (*schema.Category, error)
 	DeleteById(id string) error
 	DeleteByUserAndId(userId string, id string) error
@@ -29,20 +29,20 @@ func NewCategoryStore(client *gorm.DB) *DBCategoryStore {
 	}
 }
 
-func (s *DBCategoryStore) Pagination(limit int) (int, error) {
+func (s *DBCategoryStore) Pagination(c *schema.Category, opt PaginationOpt) (*PaginationValue, error) {
 	var count int64
-	err := s.client.Model(&schema.Category{}).Count(&count).Error
+	err := s.client.Model(&schema.Category{}).Where(&c).Count(&count).Error
 	if err != nil {
-		return 0, errors.New("unable to count record")
+		return nil, errors.New("unable to count record")
 	}
-	return int(math.Ceil(float64(count) / float64(limit))), nil
+	return &PaginationValue{PageNum: opt.Page, TotalItems: int(count), TotalPages: int(math.Ceil(float64(count) / float64(opt.Limit)))}, nil
 }
-func (s *DBCategoryStore) GetCategories(page int, limit int) (*[]schema.Category, error) {
+func (s *DBCategoryStore) GetCategories(opt PaginationOpt) (*[]schema.Category, error) {
 	var c []schema.Category
-	o := (page - 1) * limit
+	o := (opt.Page - 1) * opt.Limit
 	err := s.client.Model(&schema.Category{}).
 		Select("id", "name", "value", "user_id").
-		Limit(limit).
+		Limit(opt.Limit).
 		Offset(o).
 		Order("created_at desc").
 		Preload("User", func(db *gorm.DB) *gorm.DB {
@@ -54,13 +54,12 @@ func (s *DBCategoryStore) GetCategories(page int, limit int) (*[]schema.Category
 	}
 	return &c, nil
 }
-
-func (s *DBCategoryStore) GetCategoryOptions(page int, limit int) (*[]schema.Category, error) {
+func (s *DBCategoryStore) GetCategoryOptions(opt PaginationOpt) (*[]schema.Category, error) {
 	var c []schema.Category
-	o := (page - 1) * limit
+	o := (opt.Page - 1) * opt.Limit
 	err := s.client.Model(&schema.Category{}).
 		Select("id", "name", "value").
-		Limit(limit).
+		Limit(opt.Limit).
 		Offset(o).
 		Order("created_at desc").
 		Find(&c).Error
