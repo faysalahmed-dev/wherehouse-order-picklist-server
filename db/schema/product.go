@@ -18,6 +18,8 @@ type Product struct {
 
 	SubCategoryId string       `gorm:"type:uuid;" json:"subCategoryId,omitempty"`
 	SubCategory   *SubCategory `json:"subCategory,omitempty"`
+
+	Orders *[]Order `json:"orders,omitempty"`
 }
 
 func (c *Product) BeforeCreate(tx *gorm.DB) error {
