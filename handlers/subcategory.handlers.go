@@ -5,6 +5,7 @@ import (
 
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/schema"
 	"github.com/faysalahmed-dev/wherehouse-order-picklist/db/store"
+	"github.com/faysalahmed-dev/wherehouse-order-picklist/helpers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
@@ -37,31 +38,20 @@ func (h *SubCategoryHandler) GetSubCategories(c *fiber.Ctx) error {
 		return fiber.NewError(400, "category not found")
 	}
 	condition := &schema.SubCategory{CategoryId: category.ID}
-	tP, err := h.subCategoryStore.Pagination(limit, condition)
+	pOpt := store.PaginationOpt{Limit: limit, Page: page}
+	opt, err := h.subCategoryStore.Pagination(condition, pOpt)
 	if err != nil {
 		return fiber.NewError(500, err.Error())
 	}
-	if tP == 0 {
-		return c.Status(200).JSON(fiber.Map{
-			"error":       false,
-			"data":        []interface{}{},
-			"limit":       limit,
-			"total_pages": tP,
-			"page":        page,
-		})
+	if opt.TotalPages == 0 {
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *opt, Limit: limit}, []interface{}{})
 	}
-	if tP <= page {
-		results, err := h.subCategoryStore.GetAll(page, limit, condition)
+	if opt.TotalPages <= page {
+		results, err := h.subCategoryStore.GetAll(condition, pOpt)
 		if err != nil {
 			return fiber.NewError(500, "unable to get sub categories")
 		}
-		return c.Status(200).JSON(fiber.Map{
-			"error":       false,
-			"data":        results,
-			"limit":       limit,
-			"total_pages": tP,
-			"page":        page,
-		})
+		return helpers.SendPaginationRes(c, &helpers.P{PaginationValue: *opt, Limit: limit}, results)
 	} else {
 		return fiber.NewError(404, "page limit exit")
 	}
@@ -72,8 +62,8 @@ func (h *SubCategoryHandler) GetSubCategoriesOptions(c *fiber.Ctx) error {
 	if len(categoryParam) == 0 {
 		return fiber.NewError(fiber.StatusBadRequest, "category required")
 	}
+	results, err := h.subCategoryStore.GetOptions(&schema.SubCategory{Category: &schema.Category{Value: categoryParam}}, store.PaginationOpt{Limit: 50, Page: 1})
 
-	results, err := h.subCategoryStore.GetOptions(1, 50, &schema.SubCategory{Category: &schema.Category{Value: categoryParam}})
 	if err != nil {
 		return fiber.NewError(500, "unable to get options")
 	}
@@ -99,8 +89,13 @@ func (h *SubCategoryHandler) CreateSubCategory(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "category not found")
 	}
 
-	sub_category, err := h.subCategoryStore.InsertOne(schema.CreateSubCategoryParams(data, u.ID, category.ID))
+	p := schema.CreateSubCategoryParams(data, u.ID, category.ID)
 
+	_, err = h.subCategoryStore.GetByFields(&schema.SubCategory{CategoryId: category.ID, Value: p.Value})
+	if err == nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "sub category exists")
+	}
+	sub_category, err := h.subCategoryStore.InsertOne(p)
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "unable to create sub category")
 	}

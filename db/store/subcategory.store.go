@@ -10,9 +10,9 @@ import (
 )
 
 type SubCategoryStore interface {
-	Pagination(limit int, condition *schema.SubCategory) (pageNum int, err error)
-	GetAll(page int, limit int, condition *schema.SubCategory) (*[]schema.SubCategory, error)
-	GetOptions(page int, limit int, condition *schema.SubCategory) (*[]schema.SubCategory, error)
+	Pagination(condition *schema.SubCategory, opt PaginationOpt) (*PaginationValue, error)
+	GetAll(condition *schema.SubCategory, opt PaginationOpt) (*[]schema.SubCategory, error)
+	GetOptions(condition *schema.SubCategory, opt PaginationOpt) (*[]schema.SubCategory, error)
 	InsertOne(c *schema.SubCategory) (*schema.SubCategory, error)
 	DeleteById(id string) error
 	DeleteByUserAndId(userId string, id string) error
@@ -30,27 +30,26 @@ func NewSubCategoryStore(client *gorm.DB) *DBSubCategoryStore {
 	}
 }
 
-func (s *DBSubCategoryStore) Pagination(limit int, condition *schema.SubCategory) (int, error) {
+func (s *DBSubCategoryStore) Pagination(condition *schema.SubCategory, opt PaginationOpt) (*PaginationValue, error) {
 	var count int64
-	err := s.client.Model(&schema.SubCategory{}).Where(condition).Count(&count).Error
-	fmt.Println(err)
+	err := s.client.Model(&schema.SubCategory{}).Where(&condition).Count(&count).Error
 	if err != nil {
-		return 0, errors.New("unable to count record")
+		return nil, errors.New("unable to count record")
 	}
-	return int(math.Ceil(float64(count) / float64(limit))), nil
+	return &PaginationValue{PageNum: opt.Page, TotalItems: int(count), TotalPages: int(math.Ceil(float64(count) / float64(opt.Limit)))}, nil
 }
 
-func (s *DBSubCategoryStore) GetAll(page int, limit int, condition *schema.SubCategory) (*[]schema.SubCategory, error) {
+func (s *DBSubCategoryStore) GetAll(condition *schema.SubCategory, opt PaginationOpt) (*[]schema.SubCategory, error) {
 	var c []schema.SubCategory
-	o := (page - 1) * limit
+	o := (opt.Page - 1) * opt.Limit
 	err := s.client.Model(&schema.SubCategory{}).
 		Where(condition).
 		Select("id", "name", "value", "description", "user_id", "category_id").
-		Limit(limit).
+		Limit(opt.Limit).
 		Offset(o).
 		Order("created_at desc").
 		Preload("User", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name")
+			return db.Select("id", "name", "type")
 		}).
 		Preload("Category", func(db *gorm.DB) *gorm.DB {
 			return db.Select("id", "name", "value")
@@ -62,13 +61,13 @@ func (s *DBSubCategoryStore) GetAll(page int, limit int, condition *schema.SubCa
 	return &c, nil
 }
 
-func (s *DBSubCategoryStore) GetOptions(page int, limit int, condition *schema.SubCategory) (*[]schema.SubCategory, error) {
+func (s *DBSubCategoryStore) GetOptions(condition *schema.SubCategory, opt PaginationOpt) (*[]schema.SubCategory, error) {
 	var c []schema.SubCategory
-	o := (page - 1) * limit
+	o := (opt.Page - 1) * opt.Limit
 	err := s.client.Model(&schema.Category{}).
 		Where(condition).
 		Select("id", "name", "value").
-		Limit(limit).
+		Limit(opt.Limit).
 		Offset(o).
 		Order("created_at desc").
 		Find(&c).Error
@@ -88,11 +87,19 @@ func (s *DBSubCategoryStore) InsertOne(c *schema.SubCategory) (*schema.SubCatego
 }
 
 func (s *DBSubCategoryStore) DeleteById(id string) error {
-	return s.client.Unscoped().Delete(&schema.SubCategory{}, id).Error
+	count := s.client.Where("id = ?", id).Unscoped().Delete(&schema.SubCategory{}).RowsAffected
+	if count == 0 {
+		return errors.New("item not found")
+	}
+	return nil
 }
 
 func (s *DBSubCategoryStore) DeleteByUserAndId(userId string, id string) error {
-	return s.client.Where("user_id = ? AND id = ?", userId, id).Unscoped().Delete(&schema.SubCategory{}).Error
+	count := s.client.Where("user_id = ? AND id = ?", userId, id).Unscoped().Delete(&schema.SubCategory{}).RowsAffected
+	if count == 0 {
+		return errors.New("item not found")
+	}
+	return nil
 }
 
 func (s *DBSubCategoryStore) GetByFields(c *schema.SubCategory) (*schema.SubCategory, error) {
@@ -103,7 +110,9 @@ func (s *DBSubCategoryStore) GetByFields(c *schema.SubCategory) (*schema.SubCate
 
 func (s *DBSubCategoryStore) UpdateOne(condition *schema.SubCategory, data *schema.SubCategory) (*schema.SubCategory, error) {
 	var result *schema.SubCategory
-	r := s.client.Model(&schema.SubCategory{}).Where(&condition).Updates(data)
-
-	return result, r.Error
+	r := s.client.Model(&schema.SubCategory{}).Where(&condition).Updates(data).Scan(&result)
+	if r.RowsAffected == 0 {
+		return nil, errors.New("record not found")
+	}
+	return result, nil
 }

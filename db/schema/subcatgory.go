@@ -11,7 +11,7 @@ import (
 type SubCategory struct {
 	ID          string     `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	Name        string     `json:"name"`
-	Value       string     `gorm:"unique" json:"value"`
+	Value       string     `json:"value"`
 	Description string     `json:"description"`
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
