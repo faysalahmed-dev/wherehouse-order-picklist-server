@@ -1,9 +1,8 @@
 package store
 
 type PaginationOpt struct {
-	Limit  int
-	Page   int
-	UserId string // optional
+	Limit int
+	Page  int
 }
 
 type PaginationValue struct {
